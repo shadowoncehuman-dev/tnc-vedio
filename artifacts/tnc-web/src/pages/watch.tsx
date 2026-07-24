@@ -5,6 +5,7 @@ import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
+import { getFirebaseVideoUrl } from "@/lib/firebase";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -145,18 +146,32 @@ function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: str
   useEffect(() => {
     let cancelled = false;
     async function tryLoad() {
+      // 1. Try client-side Firebase anonymous auth first (no service account needed)
+      try {
+        const clientUrl = await getFirebaseVideoUrl(firebaseId);
+        if (!cancelled && clientUrl) {
+          setVideoUrl(clientUrl);
+          setState("ready");
+          return;
+        }
+      } catch {
+        // fall through to server-side approach
+      }
+
+      // 2. Fall back to server-side signed URL (requires FIREBASE_SERVICE_ACCOUNT)
       try {
         const resp = await fetch(`${getApiUrl("/api/firebase-video")}/${encodeURIComponent(firebaseId)}`);
         if (!cancelled && resp.ok) {
           const data = await resp.json() as { url: string };
           setVideoUrl(data.url);
           setState("ready");
-        } else {
-          if (!cancelled) setState("unavailable");
+          return;
         }
       } catch {
-        if (!cancelled) setState("unavailable");
+        // fall through
       }
+
+      if (!cancelled) setState("unavailable");
     }
     tryLoad();
     return () => { cancelled = true; };
@@ -180,23 +195,38 @@ function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: str
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 text-center">
+    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-slate-700 flex items-center justify-center mx-auto mb-4">
         <ShieldAlert size={32} className="text-amber-400" />
       </div>
-      <h2 className="text-base font-bold text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-4 max-w-xs mx-auto">
-        This lecture is stored on a secured Firebase media server.
+      <h2 className="text-base font-bold text-white mb-1">{title}</h2>
+      <p className="text-sm text-slate-400 mb-5 max-w-xs mx-auto">
+        This lecture is secured by Firebase Authentication.
       </p>
-      <div className="bg-slate-700/50 rounded-xl p-4 max-w-sm mx-auto text-left space-y-3">
-        <p className="text-xs text-amber-400 font-semibold">🔑 Admin: To unlock these videos</p>
-        <ol className="text-xs text-slate-300 leading-relaxed space-y-1.5 list-decimal pl-4">
-          <li>Go to Firebase Console → Project <code className="bg-slate-600 px-1 rounded">team-nursing-classes-818e5</code></li>
-          <li>Project Settings → Service Accounts → Generate new private key</li>
-          <li>Add the JSON as <code className="bg-slate-600 px-1 rounded">FIREBASE_SERVICE_ACCOUNT</code> environment secret</li>
-          <li>Restart the API server — all Firebase videos will start playing</li>
-        </ol>
-        <p className="text-xs text-slate-500">Firebase ID: <code className="text-slate-400">{firebaseId.slice(0, 12)}…</code></p>
+
+      <div className="max-w-sm mx-auto space-y-3 text-left">
+        {/* Option 1 — Easy */}
+        <div className="bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-4 space-y-2">
+          <p className="text-xs font-bold text-emerald-400">⚡ Option 1 — Fastest (30 seconds)</p>
+          <p className="text-xs text-slate-300 font-semibold">Enable Anonymous Authentication</p>
+          <ol className="text-xs text-slate-400 leading-relaxed space-y-1 list-decimal pl-4">
+            <li>Open <a href="https://console.firebase.google.com/project/team-nursing-classes-818e5/authentication/providers" target="_blank" rel="noreferrer" className="text-blue-400 underline">Firebase Console → Authentication</a></li>
+            <li>Sign-in method → <strong className="text-slate-300">Anonymous</strong> → Enable → Save</li>
+            <li>All 49,000+ videos unlock instantly — no server restart needed</li>
+          </ol>
+        </div>
+
+        {/* Option 2 — Service Account */}
+        <div className="bg-slate-700/40 border border-slate-600/50 rounded-xl p-4 space-y-2">
+          <p className="text-xs font-bold text-amber-400">🔑 Option 2 — Service Account</p>
+          <ol className="text-xs text-slate-400 leading-relaxed space-y-1 list-decimal pl-4">
+            <li><a href="https://console.firebase.google.com/project/team-nursing-classes-818e5/settings/serviceaccounts/adminsdk" target="_blank" rel="noreferrer" className="text-blue-400 underline">Firebase Console → Service Accounts</a> → Generate new private key</li>
+            <li>Add the downloaded JSON as secret <code className="bg-slate-600 px-1 rounded text-slate-300">FIREBASE_SERVICE_ACCOUNT</code></li>
+            <li>Restart the API server</li>
+          </ol>
+        </div>
+
+        <p className="text-xs text-slate-600 text-center">ID: {firebaseId.slice(0, 16)}…</p>
       </div>
     </div>
   );

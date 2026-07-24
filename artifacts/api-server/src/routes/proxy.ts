@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
+import { getCachedFirebaseVideoUrl, isFirebaseConfigured } from "../lib/firebase-rest";
 
 const router = Router();
 
@@ -892,6 +893,45 @@ router.get("/quiz/:examId", async (req: Request, res: Response): Promise<void> =
     logger.error({ err }, "Failed to fetch quiz");
     res.status(500).json({ error: "Failed to fetch quiz" });
   }
+});
+
+// GET /api/firebase-video/:fsId — resolve a Firebase secured video to a playable URL
+router.get("/firebase-video/:fsId", async (req: Request, res: Response): Promise<void> => {
+  const { fsId } = req.params;
+
+  if (!isFirebaseConfigured()) {
+    res.status(503).json({
+      error: "Firebase not configured",
+      setup: "Set FIREBASE_SERVICE_ACCOUNT environment variable with service account JSON from Firebase Console → Project Settings → Service Accounts.",
+      projectId: "team-nursing-classes-818e5",
+      bucket: "team-nursing-classes-818e5.appspot.com",
+    });
+    return;
+  }
+
+  try {
+    const result = await getCachedFirebaseVideoUrl(fsId);
+    if (!result) {
+      res.status(404).json({ error: "Video not found in Firebase Storage" });
+      return;
+    }
+    res.json({ url: result.url, path: result.path });
+  } catch (err) {
+    logger.error({ err, fsId }, "Firebase video URL resolution failed");
+    res.status(500).json({ error: "Failed to resolve Firebase video" });
+  }
+});
+
+// GET /api/firebase-status — check if Firebase is configured
+router.get("/firebase-status", (_req: Request, res: Response): void => {
+  res.json({
+    configured: isFirebaseConfigured(),
+    projectId: "team-nursing-classes-818e5",
+    bucket: "team-nursing-classes-818e5.appspot.com",
+    setup: isFirebaseConfigured()
+      ? null
+      : "Add FIREBASE_SERVICE_ACCOUNT secret (service account JSON) to enable Firebase video playback.",
+  });
 });
 
 export default router;

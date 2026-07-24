@@ -138,6 +138,70 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
   );
 }
 
+function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: string; title: string; sessionId: string }) {
+  const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tryLoad() {
+      try {
+        const resp = await fetch(`${getApiUrl("/api/firebase-video")}/${encodeURIComponent(firebaseId)}`);
+        if (!cancelled && resp.ok) {
+          const data = await resp.json() as { url: string };
+          setVideoUrl(data.url);
+          setState("ready");
+        } else {
+          if (!cancelled) setState("unavailable");
+        }
+      } catch {
+        if (!cancelled) setState("unavailable");
+      }
+    }
+    tryLoad();
+    return () => { cancelled = true; };
+  }, [firebaseId]);
+
+  if (state === "loading") {
+    return (
+      <div className="bg-black rounded-2xl h-64 flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/60 text-sm">Loading video…</p>
+      </div>
+    );
+  }
+
+  if (state === "ready" && videoUrl) {
+    return (
+      <div className="bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <HlsPlayer src={videoUrl} sessionId={sessionId} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-slate-700 flex items-center justify-center mx-auto mb-4">
+        <ShieldAlert size={32} className="text-amber-400" />
+      </div>
+      <h2 className="text-base font-bold text-white mb-2">{title}</h2>
+      <p className="text-sm text-slate-400 mb-4 max-w-xs mx-auto">
+        This lecture is stored on a secured Firebase media server.
+      </p>
+      <div className="bg-slate-700/50 rounded-xl p-4 max-w-sm mx-auto text-left space-y-3">
+        <p className="text-xs text-amber-400 font-semibold">🔑 Admin: To unlock these videos</p>
+        <ol className="text-xs text-slate-300 leading-relaxed space-y-1.5 list-decimal pl-4">
+          <li>Go to Firebase Console → Project <code className="bg-slate-600 px-1 rounded">team-nursing-classes-818e5</code></li>
+          <li>Project Settings → Service Accounts → Generate new private key</li>
+          <li>Add the JSON as <code className="bg-slate-600 px-1 rounded">FIREBASE_SERVICE_ACCOUNT</code> environment secret</li>
+          <li>Restart the API server — all Firebase videos will start playing</li>
+        </ol>
+        <p className="text-xs text-slate-500">Firebase ID: <code className="text-slate-400">{firebaseId.slice(0, 12)}…</code></p>
+      </div>
+    </div>
+  );
+}
+
 function SecuredVideoCard({ title, firebaseId }: { title: string; firebaseId: string | null }) {
   return (
     <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 text-center">
@@ -145,17 +209,12 @@ function SecuredVideoCard({ title, firebaseId }: { title: string; firebaseId: st
         <ShieldAlert size={32} className="text-amber-400" />
       </div>
       <h2 className="text-base font-bold text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-1 max-w-xs mx-auto">
+      <p className="text-sm text-slate-400 mb-4 max-w-xs mx-auto">
         This lecture is hosted on a secured media server.
       </p>
       {firebaseId && (
-        <p className="text-xs text-slate-500 mb-4 font-mono">ID: {firebaseId.slice(0, 8)}…</p>
+        <p className="text-xs text-slate-500 font-mono">ID: {firebaseId.slice(0, 8)}…</p>
       )}
-      <div className="bg-slate-700/50 rounded-xl p-4 max-w-xs mx-auto text-left">
-        <p className="text-xs text-slate-300 leading-relaxed">
-          <span className="font-semibold text-amber-400">📌 Note:</span> TNC is in the process of migrating all secured lectures to the web platform. This video will be available here soon. Meanwhile, all newer courses stream directly without any restriction.
-        </p>
-      </div>
     </div>
   );
 }
@@ -314,8 +373,8 @@ export default function WatchPage() {
                   <VideoPlayer session={session} sessionId={sessionId ?? ""} />
                 ) : contentType === "pdf" && session.pdfUrl ? (
                   <PdfViewer url={session.pdfUrl} title={session.title} />
-                ) : contentType === "firebase" ? (
-                  <SecuredVideoCard title={session.title} firebaseId={firebaseId} />
+                ) : contentType === "firebase" && firebaseId ? (
+                  <FirebaseVideoPlayer firebaseId={firebaseId} title={session.title} sessionId={sessionId ?? ""} />
                 ) : (
                   <NoContentCard title={session.title} />
                 )}

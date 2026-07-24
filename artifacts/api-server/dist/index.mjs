@@ -32592,6 +32592,110 @@ var logger = (0, import_pino.default)({
   }
 });
 
+// src/lib/firebase-rest.ts
+import { createSign } from "crypto";
+var BUCKET = "team-nursing-classes-818e5.appspot.com";
+var VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
+var cachedToken = null;
+function parseServiceAccount() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function isFirebaseConfigured() {
+  return !!process.env.FIREBASE_SERVICE_ACCOUNT;
+}
+async function getAccessToken() {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 6e4) {
+    return cachedToken.value;
+  }
+  const sa = parseServiceAccount();
+  if (!sa) return null;
+  const now = Math.floor(Date.now() / 1e3);
+  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+  const claims = Buffer.from(
+    JSON.stringify({
+      iss: sa.client_email,
+      sub: sa.client_email,
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+      scope: [
+        "https://www.googleapis.com/auth/devstorage.read_only",
+        "https://www.googleapis.com/auth/firebase"
+      ].join(" ")
+    })
+  ).toString("base64url");
+  const sign = createSign("RSA-SHA256");
+  sign.update(`${header}.${claims}`);
+  const sig = sign.sign(sa.private_key, "base64url");
+  const jwt = `${header}.${claims}.${sig}`;
+  const resp = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth2:grant-type:jwt-bearer",
+      assertion: jwt
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Google token error ${resp.status}: ${err}`);
+  }
+  const data = await resp.json();
+  cachedToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1e3
+  };
+  return cachedToken.value;
+}
+async function getFileMetadata(path, token) {
+  const encoded = encodeURIComponent(path);
+  const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+function buildPublicDownloadUrl(path, token) {
+  const encoded = encodeURIComponent(path);
+  return `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media&token=${token}`;
+}
+async function getFirebaseVideoDownloadUrl(fsId) {
+  if (!isFirebaseConfigured()) return null;
+  const token = await getAccessToken();
+  if (!token) return null;
+  const pathsToTry = [
+    ...VIDEO_PATHS.map((p) => `${p}/${fsId}`),
+    ...VIDEO_PATHS.map((p) => `${p}/${fsId}.mp4`),
+    fsId,
+    `${fsId}.mp4`
+  ];
+  for (const path of pathsToTry) {
+    const meta = await getFileMetadata(path, token);
+    if (meta?.downloadTokens) {
+      const url = buildPublicDownloadUrl(path, meta.downloadTokens);
+      return { url, path };
+    }
+  }
+  return null;
+}
+var urlCache = /* @__PURE__ */ new Map();
+async function getCachedFirebaseVideoUrl(fsId) {
+  const cached = urlCache.get(fsId);
+  if (cached && cached.expiresAt > Date.now()) return cached;
+  const result = await getFirebaseVideoDownloadUrl(fsId);
+  if (result) {
+    urlCache.set(fsId, { ...result, expiresAt: Date.now() + 55 * 60 * 1e3 });
+  }
+  return result;
+}
+
 // src/routes/proxy.ts
 var router2 = (0, import_express2.Router)();
 var CRM_BASE = "https://crm.tncnursing.in";
@@ -33376,6 +33480,37 @@ router2.get("/quiz/:examId", async (req, res) => {
     logger.error({ err }, "Failed to fetch quiz");
     res.status(500).json({ error: "Failed to fetch quiz" });
   }
+});
+router2.get("/firebase-video/:fsId", async (req, res) => {
+  const { fsId } = req.params;
+  if (!isFirebaseConfigured()) {
+    res.status(503).json({
+      error: "Firebase not configured",
+      setup: "Set FIREBASE_SERVICE_ACCOUNT environment variable with service account JSON from Firebase Console \u2192 Project Settings \u2192 Service Accounts.",
+      projectId: "team-nursing-classes-818e5",
+      bucket: "team-nursing-classes-818e5.appspot.com"
+    });
+    return;
+  }
+  try {
+    const result = await getCachedFirebaseVideoUrl(fsId);
+    if (!result) {
+      res.status(404).json({ error: "Video not found in Firebase Storage" });
+      return;
+    }
+    res.json({ url: result.url, path: result.path });
+  } catch (err) {
+    logger.error({ err, fsId }, "Firebase video URL resolution failed");
+    res.status(500).json({ error: "Failed to resolve Firebase video" });
+  }
+});
+router2.get("/firebase-status", (_req, res) => {
+  res.json({
+    configured: isFirebaseConfigured(),
+    projectId: "team-nursing-classes-818e5",
+    bucket: "team-nursing-classes-818e5.appspot.com",
+    setup: isFirebaseConfigured() ? null : "Add FIREBASE_SERVICE_ACCOUNT secret (service account JSON) to enable Firebase video playback."
+  });
 });
 var proxy_default = router2;
 

@@ -146,24 +146,28 @@ function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: str
   useEffect(() => {
     let cancelled = false;
     async function tryLoad() {
-      // 1. Try client-side Firebase anonymous auth first (no service account needed)
+      // 1. Try server-side proxy stream (works with FIREBASE_USER_EMAIL/PASSWORD or service account)
+      try {
+        const statusResp = await fetch(getApiUrl("/api/firebase-status"));
+        if (!cancelled && statusResp.ok) {
+          const status = await statusResp.json() as { configured: boolean };
+          if (status.configured) {
+            // Use the proxy stream URL directly as video src
+            const streamUrl = `${getApiUrl("/api/firebase-stream")}/${encodeURIComponent(firebaseId)}`;
+            setVideoUrl(streamUrl);
+            setState("ready");
+            return;
+          }
+        }
+      } catch {
+        // fall through
+      }
+
+      // 2. Try client-side Firebase anonymous auth (if enabled in Firebase Console)
       try {
         const clientUrl = await getFirebaseVideoUrl(firebaseId);
         if (!cancelled && clientUrl) {
           setVideoUrl(clientUrl);
-          setState("ready");
-          return;
-        }
-      } catch {
-        // fall through to server-side approach
-      }
-
-      // 2. Fall back to server-side signed URL (requires FIREBASE_SERVICE_ACCOUNT)
-      try {
-        const resp = await fetch(`${getApiUrl("/api/firebase-video")}/${encodeURIComponent(firebaseId)}`);
-        if (!cancelled && resp.ok) {
-          const data = await resp.json() as { url: string };
-          setVideoUrl(data.url);
           setState("ready");
           return;
         }
@@ -205,28 +209,32 @@ function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: str
       </p>
 
       <div className="max-w-sm mx-auto space-y-3 text-left">
-        {/* Option 1 — Easy */}
+        {/* Option 1 — TNC Account credentials */}
         <div className="bg-emerald-900/40 border border-emerald-700/50 rounded-xl p-4 space-y-2">
-          <p className="text-xs font-bold text-emerald-400">⚡ Option 1 — Fastest (30 seconds)</p>
-          <p className="text-xs text-slate-300 font-semibold">Enable Anonymous Authentication</p>
-          <ol className="text-xs text-slate-400 leading-relaxed space-y-1 list-decimal pl-4">
-            <li>Open <a href="https://console.firebase.google.com/project/team-nursing-classes-818e5/authentication/providers" target="_blank" rel="noreferrer" className="text-blue-400 underline">Firebase Console → Authentication</a></li>
-            <li>Sign-in method → <strong className="text-slate-300">Anonymous</strong> → Enable → Save</li>
-            <li>All 49,000+ videos unlock instantly — no server restart needed</li>
-          </ol>
+          <p className="text-xs font-bold text-emerald-400">⚡ Easiest — Use your TNC account</p>
+          <p className="text-xs text-slate-400 leading-relaxed">The server will sign into Firebase as you and stream all videos through a proxy. No Firebase Console needed.</p>
+          <div className="space-y-1.5">
+            <div className="bg-slate-800 rounded-lg p-2 font-mono text-xs text-emerald-300">
+              FIREBASE_USER_EMAIL = your@email.com
+            </div>
+            <div className="bg-slate-800 rounded-lg p-2 font-mono text-xs text-emerald-300">
+              FIREBASE_USER_PASSWORD = yourpassword
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">Add these as Replit secrets → restart API server → all videos play.</p>
         </div>
 
         {/* Option 2 — Service Account */}
         <div className="bg-slate-700/40 border border-slate-600/50 rounded-xl p-4 space-y-2">
-          <p className="text-xs font-bold text-amber-400">🔑 Option 2 — Service Account</p>
+          <p className="text-xs font-bold text-amber-400">🔑 Alternative — Service Account</p>
           <ol className="text-xs text-slate-400 leading-relaxed space-y-1 list-decimal pl-4">
-            <li><a href="https://console.firebase.google.com/project/team-nursing-classes-818e5/settings/serviceaccounts/adminsdk" target="_blank" rel="noreferrer" className="text-blue-400 underline">Firebase Console → Service Accounts</a> → Generate new private key</li>
-            <li>Add the downloaded JSON as secret <code className="bg-slate-600 px-1 rounded text-slate-300">FIREBASE_SERVICE_ACCOUNT</code></li>
-            <li>Restart the API server</li>
+            <li><a href="https://console.firebase.google.com/project/team-nursing-classes-818e5/settings/serviceaccounts/adminsdk" target="_blank" rel="noreferrer" className="text-blue-400 underline">Firebase Console → Service Accounts</a> → Generate private key</li>
+            <li>Add JSON as secret <code className="bg-slate-600 px-1 rounded text-slate-300">FIREBASE_SERVICE_ACCOUNT</code></li>
+            <li>Restart API server</li>
           </ol>
         </div>
 
-        <p className="text-xs text-slate-600 text-center">ID: {firebaseId.slice(0, 16)}…</p>
+        <p className="text-xs text-slate-600 text-center">Firebase ID: {firebaseId.slice(0, 16)}…</p>
       </div>
     </div>
   );

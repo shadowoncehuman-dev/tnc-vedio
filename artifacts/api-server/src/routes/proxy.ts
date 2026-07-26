@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
-import { getCachedFirebaseVideoUrl, isFirebaseConfigured } from "../lib/firebase-rest";
+import { getCachedFirebaseVideoUrl, isFirebaseConfigured, isUserAuthConfigured, isServiceAccountConfigured, signInWithEmailPassword, streamFirebaseVideo } from "../lib/firebase-rest";
 
 const router = Router();
 
@@ -895,26 +895,47 @@ router.get("/quiz/:examId", async (req: Request, res: Response): Promise<void> =
   }
 });
 
-// GET /api/firebase-video/:fsId — resolve a Firebase secured video to a playable URL
-router.get("/firebase-video/:fsId", async (req: Request, res: Response): Promise<void> => {
+// GET /api/firebase-stream/:fsId — proxy-stream a Firebase secured video to the browser
+// Works with user email/password auth OR service account (no service account needed if email/pass set)
+router.get("/firebase-stream/:fsId", async (req: Request, res: Response): Promise<void> => {
   const { fsId } = req.params;
 
   if (!isFirebaseConfigured()) {
     res.status(503).json({
       error: "Firebase not configured",
-      setup: "Set FIREBASE_SERVICE_ACCOUNT environment variable with service account JSON from Firebase Console → Project Settings → Service Accounts.",
-      projectId: "team-nursing-classes-818e5",
-      bucket: "team-nursing-classes-818e5.appspot.com",
+      options: {
+        easy: "Set FIREBASE_USER_EMAIL + FIREBASE_USER_PASSWORD env vars (any TNC account)",
+        advanced: "Set FIREBASE_SERVICE_ACCOUNT env var (service account JSON from Firebase Console)",
+      },
     });
     return;
   }
 
   try {
-    const result = await getCachedFirebaseVideoUrl(fsId);
-    if (!result) {
+    await streamFirebaseVideo(fsId, req.headers.range, res);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === "no_auth") {
+      res.status(503).json({ error: "Firebase auth failed — check credentials" });
+    } else if (msg === "not_found") {
       res.status(404).json({ error: "Video not found in Firebase Storage" });
-      return;
+    } else {
+      logger.error({ err, fsId }, "Firebase stream failed");
+      res.status(500).json({ error: "Stream failed" });
     }
+  }
+});
+
+// GET /api/firebase-video/:fsId — get a direct download URL (service account only)
+router.get("/firebase-video/:fsId", async (req: Request, res: Response): Promise<void> => {
+  const { fsId } = req.params;
+  if (!isServiceAccountConfigured()) {
+    res.status(503).json({ error: "Requires FIREBASE_SERVICE_ACCOUNT. Use /api/firebase-stream/:fsId for email/password auth." });
+    return;
+  }
+  try {
+    const result = await getCachedFirebaseVideoUrl(fsId);
+    if (!result) { res.status(404).json({ error: "Video not found" }); return; }
     res.json({ url: result.url, path: result.path });
   } catch (err) {
     logger.error({ err, fsId }, "Firebase video URL resolution failed");
@@ -922,15 +943,32 @@ router.get("/firebase-video/:fsId", async (req: Request, res: Response): Promise
   }
 });
 
-// GET /api/firebase-status — check if Firebase is configured
+// POST /api/firebase-auth — test Firebase email/password sign-in
+router.post("/firebase-auth", async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body as { email?: string; password?: string };
+  if (!email || !password) {
+    res.status(400).json({ error: "email and password required" });
+    return;
+  }
+  try {
+    const tokens = await signInWithEmailPassword(email, password);
+    res.json({ success: true, expiresAt: new Date(tokens.expiresAt).toISOString() });
+  } catch (err) {
+    res.status(401).json({ error: (err as Error).message });
+  }
+});
+
+// GET /api/firebase-status — check what Firebase auth is configured
 router.get("/firebase-status", (_req: Request, res: Response): void => {
   res.json({
     configured: isFirebaseConfigured(),
+    method: isUserAuthConfigured() ? "email_password" : isServiceAccountConfigured() ? "service_account" : null,
     projectId: "team-nursing-classes-818e5",
     bucket: "team-nursing-classes-818e5.appspot.com",
-    setup: isFirebaseConfigured()
-      ? null
-      : "Add FIREBASE_SERVICE_ACCOUNT secret (service account JSON) to enable Firebase video playback.",
+    setup: isFirebaseConfigured() ? null : {
+      option1: "Set FIREBASE_USER_EMAIL + FIREBASE_USER_PASSWORD (any TNC account email+password)",
+      option2: "Set FIREBASE_SERVICE_ACCOUNT (service account JSON from Firebase Console)",
+    },
   });
 });
 

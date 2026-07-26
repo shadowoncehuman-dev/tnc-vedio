@@ -32594,27 +32594,80 @@ var logger = (0, import_pino.default)({
 
 // src/lib/firebase-rest.ts
 import { createSign } from "crypto";
+var FIREBASE_API_KEY = "AIzaSyD8LTjLjo89KpUzvHLpjwODOGj9UKb2H8c";
 var BUCKET = "team-nursing-classes-818e5.appspot.com";
 var VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
-var cachedToken = null;
-function parseServiceAccount() {
+var userToken = null;
+function isUserAuthConfigured() {
+  return !!(process.env.FIREBASE_USER_EMAIL && process.env.FIREBASE_USER_PASSWORD);
+}
+async function signInWithEmailPassword(email, password) {
+  const resp = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true })
+    }
+  );
+  const data = await resp.json();
+  if (!resp.ok || !data.idToken) {
+    throw new Error(`Firebase sign-in failed: ${data.error?.message ?? resp.status}`);
+  }
+  return {
+    idToken: data.idToken,
+    refreshToken: data.refreshToken,
+    expiresAt: Date.now() + parseInt(data.expiresIn ?? "3600") * 1e3
+  };
+}
+async function refreshUserToken(refreshToken) {
+  const resp = await fetch(
+    `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken })
+    }
+  );
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  return {
+    idToken: data.id_token,
+    refreshToken: data.refresh_token,
+    expiresAt: Date.now() + parseInt(data.expires_in) * 1e3
+  };
+}
+async function getUserIdToken() {
+  if (userToken && userToken.expiresAt > Date.now() + 5 * 60 * 1e3) {
+    return userToken.idToken;
+  }
+  if (userToken?.refreshToken) {
+    const refreshed = await refreshUserToken(userToken.refreshToken);
+    if (refreshed) {
+      userToken = refreshed;
+      return refreshed.idToken;
+    }
+  }
+  const email = process.env.FIREBASE_USER_EMAIL;
+  const password = process.env.FIREBASE_USER_PASSWORD;
+  const tokens = await signInWithEmailPassword(email, password);
+  userToken = tokens;
+  return tokens.idToken;
+}
+var saToken = null;
+function isServiceAccountConfigured() {
+  return !!process.env.FIREBASE_SERVICE_ACCOUNT;
+}
+async function getServiceAccountToken() {
+  if (saToken && saToken.expiresAt > Date.now() + 6e4) return saToken.value;
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
+  let sa;
   try {
-    return JSON.parse(raw);
+    sa = JSON.parse(raw);
   } catch {
     return null;
   }
-}
-function isFirebaseConfigured() {
-  return !!process.env.FIREBASE_SERVICE_ACCOUNT;
-}
-async function getAccessToken() {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 6e4) {
-    return cachedToken.value;
-  }
-  const sa = parseServiceAccount();
-  if (!sa) return null;
   const now = Math.floor(Date.now() / 1e3);
   const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
   const claims = Buffer.from(
@@ -32624,10 +32677,7 @@ async function getAccessToken() {
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,
-      scope: [
-        "https://www.googleapis.com/auth/devstorage.read_only",
-        "https://www.googleapis.com/auth/firebase"
-      ].join(" ")
+      scope: "https://www.googleapis.com/auth/devstorage.read_only"
     })
   ).toString("base64url");
   const sign = createSign("RSA-SHA256");
@@ -32642,58 +32692,81 @@ async function getAccessToken() {
       assertion: jwt
     })
   });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Google token error ${resp.status}: ${err}`);
-  }
-  const data = await resp.json();
-  cachedToken = {
-    value: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1e3
-  };
-  return cachedToken.value;
-}
-async function getFileMetadata(path, token) {
-  const encoded = encodeURIComponent(path);
-  const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`;
-  const resp = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
   if (!resp.ok) return null;
-  return resp.json();
+  const data = await resp.json();
+  saToken = { value: data.access_token, expiresAt: Date.now() + data.expires_in * 1e3 };
+  return saToken.value;
 }
-function buildPublicDownloadUrl(path, token) {
-  const encoded = encodeURIComponent(path);
-  return `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media&token=${token}`;
+function isFirebaseConfigured() {
+  return isUserAuthConfigured() || isServiceAccountConfigured();
 }
-async function getFirebaseVideoDownloadUrl(fsId) {
-  if (!isFirebaseConfigured()) return null;
-  const token = await getAccessToken();
-  if (!token) return null;
-  const pathsToTry = [
+async function getAuthToken() {
+  if (isUserAuthConfigured()) return getUserIdToken();
+  if (isServiceAccountConfigured()) return getServiceAccountToken();
+  return null;
+}
+var pathCache = /* @__PURE__ */ new Map();
+async function findStoragePath(fsId, token) {
+  const cached = pathCache.get(fsId);
+  if (cached && cached.expiresAt > Date.now()) return cached.path;
+  const candidates = [
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}`),
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}.mp4`),
     fsId,
     `${fsId}.mp4`
   ];
-  for (const path of pathsToTry) {
-    const meta = await getFileMetadata(path, token);
-    if (meta?.downloadTokens) {
-      const url = buildPublicDownloadUrl(path, meta.downloadTokens);
-      return { url, path };
+  for (const path of candidates) {
+    const encoded = encodeURIComponent(path);
+    const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (resp.ok) {
+      pathCache.set(fsId, { path, expiresAt: Date.now() + 60 * 60 * 1e3 });
+      return path;
     }
   }
   return null;
 }
-var urlCache = /* @__PURE__ */ new Map();
-async function getCachedFirebaseVideoUrl(fsId) {
-  const cached = urlCache.get(fsId);
-  if (cached && cached.expiresAt > Date.now()) return cached;
-  const result = await getFirebaseVideoDownloadUrl(fsId);
-  if (result) {
-    urlCache.set(fsId, { ...result, expiresAt: Date.now() + 55 * 60 * 1e3 });
+async function streamFirebaseVideo(fsId, rangeHeader, res) {
+  const token = await getAuthToken();
+  if (!token) throw new Error("no_auth");
+  const path = await findStoragePath(fsId, token);
+  if (!path) throw new Error("not_found");
+  const encoded = encodeURIComponent(path);
+  const storageUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media`;
+  const fetchHeaders = { Authorization: `Bearer ${token}` };
+  if (rangeHeader) fetchHeaders.Range = rangeHeader;
+  const fbResp = await fetch(storageUrl, { headers: fetchHeaders });
+  res.status(fbResp.status);
+  for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+    const v = fbResp.headers.get(h);
+    if (v) res.setHeader(h, v);
   }
-  return result;
+  res.setHeader("cache-control", "private, max-age=3600");
+  if (!fbResp.body) {
+    res.end();
+    return;
+  }
+  const { Readable } = await import("stream");
+  const nodeStream = Readable.fromWeb(fbResp.body);
+  nodeStream.pipe(res);
+  nodeStream.on("error", () => res.end());
+}
+async function getCachedFirebaseVideoUrl(fsId) {
+  if (!isServiceAccountConfigured()) return null;
+  const token = await getServiceAccountToken();
+  if (!token) return null;
+  const path = await findStoragePath(fsId, token);
+  if (!path) return null;
+  const encoded = encodeURIComponent(path);
+  const metaResp = await fetch(
+    `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!metaResp.ok) return null;
+  const meta = await metaResp.json();
+  if (!meta.downloadTokens) return null;
+  const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media&token=${meta.downloadTokens}`;
+  return { url, path };
 }
 
 // src/routes/proxy.ts
@@ -33481,21 +33554,42 @@ router2.get("/quiz/:examId", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch quiz" });
   }
 });
-router2.get("/firebase-video/:fsId", async (req, res) => {
+router2.get("/firebase-stream/:fsId", async (req, res) => {
   const { fsId } = req.params;
   if (!isFirebaseConfigured()) {
     res.status(503).json({
       error: "Firebase not configured",
-      setup: "Set FIREBASE_SERVICE_ACCOUNT environment variable with service account JSON from Firebase Console \u2192 Project Settings \u2192 Service Accounts.",
-      projectId: "team-nursing-classes-818e5",
-      bucket: "team-nursing-classes-818e5.appspot.com"
+      options: {
+        easy: "Set FIREBASE_USER_EMAIL + FIREBASE_USER_PASSWORD env vars (any TNC account)",
+        advanced: "Set FIREBASE_SERVICE_ACCOUNT env var (service account JSON from Firebase Console)"
+      }
     });
+    return;
+  }
+  try {
+    await streamFirebaseVideo(fsId, req.headers.range, res);
+  } catch (err) {
+    const msg = err.message;
+    if (msg === "no_auth") {
+      res.status(503).json({ error: "Firebase auth failed \u2014 check credentials" });
+    } else if (msg === "not_found") {
+      res.status(404).json({ error: "Video not found in Firebase Storage" });
+    } else {
+      logger.error({ err, fsId }, "Firebase stream failed");
+      res.status(500).json({ error: "Stream failed" });
+    }
+  }
+});
+router2.get("/firebase-video/:fsId", async (req, res) => {
+  const { fsId } = req.params;
+  if (!isServiceAccountConfigured()) {
+    res.status(503).json({ error: "Requires FIREBASE_SERVICE_ACCOUNT. Use /api/firebase-stream/:fsId for email/password auth." });
     return;
   }
   try {
     const result = await getCachedFirebaseVideoUrl(fsId);
     if (!result) {
-      res.status(404).json({ error: "Video not found in Firebase Storage" });
+      res.status(404).json({ error: "Video not found" });
       return;
     }
     res.json({ url: result.url, path: result.path });
@@ -33504,12 +33598,29 @@ router2.get("/firebase-video/:fsId", async (req, res) => {
     res.status(500).json({ error: "Failed to resolve Firebase video" });
   }
 });
+router2.post("/firebase-auth", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ error: "email and password required" });
+    return;
+  }
+  try {
+    const tokens = await signInWithEmailPassword(email, password);
+    res.json({ success: true, expiresAt: new Date(tokens.expiresAt).toISOString() });
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
 router2.get("/firebase-status", (_req, res) => {
   res.json({
     configured: isFirebaseConfigured(),
+    method: isUserAuthConfigured() ? "email_password" : isServiceAccountConfigured() ? "service_account" : null,
     projectId: "team-nursing-classes-818e5",
     bucket: "team-nursing-classes-818e5.appspot.com",
-    setup: isFirebaseConfigured() ? null : "Add FIREBASE_SERVICE_ACCOUNT secret (service account JSON) to enable Firebase video playback."
+    setup: isFirebaseConfigured() ? null : {
+      option1: "Set FIREBASE_USER_EMAIL + FIREBASE_USER_PASSWORD (any TNC account email+password)",
+      option2: "Set FIREBASE_SERVICE_ACCOUNT (service account JSON from Firebase Console)"
+    }
   });
 });
 var proxy_default = router2;

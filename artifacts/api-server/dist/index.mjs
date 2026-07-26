@@ -32599,7 +32599,9 @@ var BUCKET = "team-nursing-classes-818e5.appspot.com";
 var VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
 var userToken = null;
 function isUserAuthConfigured() {
-  return !!(process.env.FIREBASE_USER_EMAIL && process.env.FIREBASE_USER_PASSWORD);
+  const email = process.env.FIREBASE_USER_EMAIL ?? "";
+  const password = process.env.FIREBASE_USER_PASSWORD ?? "";
+  return !!(email.includes("@") && password);
 }
 async function signInWithEmailPassword(email, password) {
   const resp = await fetch(

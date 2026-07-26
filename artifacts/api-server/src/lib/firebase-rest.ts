@@ -24,7 +24,10 @@ interface UserToken {
 let userToken: UserToken | null = null;
 
 export function isUserAuthConfigured(): boolean {
-  return !!(process.env.FIREBASE_USER_EMAIL && process.env.FIREBASE_USER_PASSWORD);
+  const email = process.env.FIREBASE_USER_EMAIL ?? "";
+  const password = process.env.FIREBASE_USER_PASSWORD ?? "";
+  // Must look like a real email (TNC uses phone numbers, which aren't valid Firebase emails)
+  return !!(email.includes("@") && password);
 }
 
 /** Sign in with email+password via Firebase Auth REST API */

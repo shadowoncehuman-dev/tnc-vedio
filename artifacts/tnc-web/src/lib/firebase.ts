@@ -1,5 +1,13 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, signInAnonymously, onAuthStateChanged, type Auth } from "firebase/auth";
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithPhoneNumber,
+  onAuthStateChanged,
+  RecaptchaVerifier,
+  type Auth,
+  type ConfirmationResult,
+} from "firebase/auth";
 import { getStorage, ref, getDownloadURL, type FirebaseStorage } from "firebase/storage";
 
 const FIREBASE_CONFIG = {
@@ -16,7 +24,6 @@ const VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "str
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let storage: FirebaseStorage | null = null;
-let authReady: Promise<boolean> | null = null;
 
 function initFirebase() {
   if (app) return;
@@ -25,64 +32,88 @@ function initFirebase() {
   storage = getStorage(app);
 }
 
-/**
- * Sign in anonymously to Firebase so storage rules that require
- * `request.auth != null` are satisfied. Returns true if auth succeeded.
- */
-export function ensureFirebaseAuth(): Promise<boolean> {
-  if (authReady) return authReady;
+// ─── Anonymous auth (if enabled on project) ───────────────────────────────────
+let anonAuthResult: Promise<boolean> | null = null;
 
+export function tryAnonymousAuth(): Promise<boolean> {
+  if (anonAuthResult) return anonAuthResult;
   initFirebase();
 
-  authReady = new Promise<boolean>((resolve) => {
-    const fbAuth = auth!;
-
-    // If already signed in, we're done
-    const unsubscribe = onAuthStateChanged(fbAuth, async (user) => {
-      if (user) {
-        unsubscribe();
-        resolve(true);
-        return;
-      }
-      // Try anonymous sign-in — only works if Anonymous auth is enabled in Firebase Console
+  anonAuthResult = new Promise<boolean>((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth!, async (user) => {
+      if (user) { unsubscribe(); resolve(true); return; }
       try {
-        await signInAnonymously(fbAuth);
+        await signInAnonymously(auth!);
         resolve(true);
       } catch {
-        // Anonymous auth not enabled — resolve false silently (no console noise)
         resolve(false);
       }
     });
   });
-
-  return authReady;
+  return anonAuthResult;
 }
 
+// ─── Phone number auth ────────────────────────────────────────────────────────
+let confirmationResult: ConfirmationResult | null = null;
+let recaptchaVerifier: RecaptchaVerifier | null = null;
+
+function toE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("91") && digits.length === 12) return `+${digits}`;
+  if (digits.length === 10) return `+91${digits}`;
+  return `+${digits}`;
+}
+
+/** Send OTP to phone number. containerEl is any mounted div for invisible reCAPTCHA. */
+export async function sendOtp(phone: string, containerEl: HTMLElement): Promise<void> {
+  initFirebase();
+  if (recaptchaVerifier) {
+    try { recaptchaVerifier.clear(); } catch { /* ignore */ }
+  }
+  recaptchaVerifier = new RecaptchaVerifier(auth!, containerEl, { size: "invisible" });
+  confirmationResult = await signInWithPhoneNumber(auth!, toE164(phone), recaptchaVerifier);
+}
+
+/** Confirm OTP code. Returns true on success. */
+export async function confirmOtp(code: string): Promise<boolean> {
+  if (!confirmationResult) return false;
+  try {
+    await confirmationResult.confirm(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Check if user is currently signed in to Firebase */
+export function isFirebaseSignedIn(): boolean {
+  if (!auth) return false;
+  return !!auth.currentUser;
+}
+
+// ─── Storage access ───────────────────────────────────────────────────────────
 /**
- * Try to get a download URL for a Firebase-secured video by its _fs_id UUID.
- * Tries multiple common storage path patterns.
- * Returns null if not found or auth fails.
+ * Try to get a download URL for a Firebase-secured video.
+ * Requires user to already be authenticated (phone auth or anonymous).
  */
 export async function getFirebaseVideoUrl(fsId: string): Promise<string | null> {
   initFirebase();
-  const authed = await ensureFirebaseAuth();
-  if (!authed) return null;
+  if (!auth?.currentUser) return null;
 
   const fbStorage = storage!;
-  const pathsToTry = [
+  const candidates = [
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}`),
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}.mp4`),
     fsId,
     `${fsId}.mp4`,
   ];
 
-  for (const path of pathsToTry) {
+  for (const path of candidates) {
     try {
-      const fileRef = ref(fbStorage, path);
-      const url = await getDownloadURL(fileRef);
+      const url = await getDownloadURL(ref(fbStorage, path));
       return url;
     } catch {
-      // object/not-found or unauthorized — try next
+      // not found or permission denied — try next
     }
   }
   return null;

@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, useListSessions, getListSessionsQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Smartphone, Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
@@ -139,19 +139,61 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
 }
 
 
-function SecuredVideoCard({ title, firebaseId }: { title: string; firebaseId: string | null }) {
+function AppRequiredCard({ title }: { title: string }) {
   return (
-    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-8 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-slate-700 flex items-center justify-center mx-auto mb-4">
-        <ShieldAlert size={32} className="text-amber-400" />
+    <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0f2027 50%, #1a1a2e 100%)" }}>
+      {/* Top banner */}
+      <div className="bg-blue-600/20 border-b border-blue-500/20 px-5 py-2.5 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+        <span className="text-blue-300 text-xs font-semibold tracking-wide uppercase">Premium App Lecture</span>
       </div>
-      <h2 className="text-base font-bold text-white mb-2">{title}</h2>
-      <p className="text-sm text-slate-400 mb-4 max-w-xs mx-auto">
-        This lecture is hosted on a secured media server.
-      </p>
-      {firebaseId && (
-        <p className="text-xs text-slate-500 font-mono">ID: {firebaseId.slice(0, 8)}…</p>
-      )}
+
+      <div className="px-6 py-8 text-center">
+        {/* App icon */}
+        <div className="w-20 h-20 rounded-3xl mx-auto mb-5 flex items-center justify-center shadow-xl"
+          style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+          <Smartphone size={36} className="text-white" />
+        </div>
+
+        {/* Title */}
+        <h2 className="text-lg font-black text-white mb-2 leading-snug">{title}</h2>
+        <p className="text-blue-200 text-sm mb-1 font-medium">This lecture streams exclusively in the TNC app</p>
+        <p className="text-slate-400 text-xs mb-7 max-w-xs mx-auto">
+          Download the free TNC Nursing Classes app and watch this lecture along with thousands of other premium video lessons.
+        </p>
+
+        {/* Download buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.tncnursing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 bg-white text-gray-900 font-bold text-sm px-5 py-3 rounded-xl hover:bg-gray-100 transition-colors shadow-lg"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.18 23.76c.3.17.64.24.99.2l12.9-11.88-2.97-2.97-10.92 14.65zM.94 1.05C.36 1.56 0 2.4 0 3.48V20.5c0 1.08.36 1.92.94 2.43l.12.1 9.72-9.72v-.24L1.06.95.94 1.05zM20.17 9.58l-2.77-1.6-3.12 3.13 3.12 3.12 2.8-1.6c.8-.46.8-1.6-.03-2.05zM4.17.24L17.07 12.12l-2.97 2.97L4.17.24z"/>
+            </svg>
+            Google Play
+          </a>
+          <a
+            href="https://tncnursing.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-blue-300 hover:text-blue-200 text-sm font-medium transition-colors"
+          >
+            <Download size={14} />
+            Visit tncnursing.in
+          </a>
+        </div>
+
+        {/* Divider + note */}
+        <div className="mt-7 pt-5 border-t border-slate-700/50">
+          <p className="text-xs text-slate-500">
+            Already have the app?{" "}
+            <span className="text-slate-400">Open TNC app → Courses → find this lecture</span>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -311,7 +353,7 @@ export default function WatchPage() {
                 ) : contentType === "pdf" && session.pdfUrl ? (
                   <PdfViewer url={session.pdfUrl} title={session.title} />
                 ) : contentType === "firebase" && firebaseId ? (
-                  <SecuredVideoCard title={session.title} firebaseId={firebaseId} />
+                  <AppRequiredCard title={session.title} />
                 ) : (
                   <NoContentCard title={session.title} />
                 )}

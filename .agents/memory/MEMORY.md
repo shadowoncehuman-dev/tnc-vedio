@@ -2,4 +2,4 @@
 - [Zod v4 + react-hook-form](zod-hookform-compat.md) — use `zod` not `zod/v4` for zodResolver compatibility
 - [TNC CRM table map](tnc-crm-tables.md) — t_ch=sessions/videos (59k), t_ex=exams (6750), t_qu=questions (157k), t_se is empty
 - [Vite + workspace hooks defensive pattern](vite-workspace-hooks.md) — useQuery can return unexpected non-array value; always use Array.isArray() not ?? []
-- [Firebase video limitation](firebase-video.md) — _fs_id is a UUID with no public URL; Firebase Storage 404s for all bucket patterns; show SecuredVideoCard instead of app download links
+- [Firebase video limitation](firebase-video.md) — _fs_id is a UUID; ALL Firebase auth disabled (anon=ADMIN_ONLY, email=PASSWORD_LOGIN_DISABLED, phone=OPERATION_NOT_ALLOWED); Storage 404s on all path patterns; show AppRequiredCard with Play Store link

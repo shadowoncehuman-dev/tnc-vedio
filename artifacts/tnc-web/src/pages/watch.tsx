@@ -5,7 +5,6 @@ import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
-import { getFirebaseVideoUrl, sendOtp, confirmOtp, isFirebaseSignedIn } from "@/lib/firebase";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -139,189 +138,6 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
   );
 }
 
-type FbState =
-  | "loading"
-  | "phone_needed"
-  | "phone_input"
-  | "sending_otp"
-  | "otp_input"
-  | "verifying"
-  | "fetching_url"
-  | "ready";
-
-function FirebaseVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: string; title: string; sessionId: string }) {
-  const [state, setState] = useState<FbState>("loading");
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [phone, setPhone] = useState("7037917438");
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
-  const recaptchaRef = useRef<HTMLDivElement>(null);
-
-  const tryClientUrl = useCallback(async () => {
-    setState("fetching_url");
-    try {
-      const url = await getFirebaseVideoUrl(firebaseId);
-      if (url) { setVideoUrl(url); setState("ready"); return true; }
-    } catch { /* fall through */ }
-    setState("phone_needed");
-    return false;
-  }, [firebaseId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function tryLoad() {
-      // 1. Server-side proxy (only when FIREBASE_USER_EMAIL has @ — real email accounts)
-      try {
-        const statusResp = await fetch(getApiUrl("/api/firebase-status"));
-        if (!cancelled && statusResp.ok) {
-          const status = (await statusResp.json()) as { configured: boolean };
-          if (status.configured) {
-            const streamUrl = `${getApiUrl("/api/firebase-stream")}/${encodeURIComponent(firebaseId)}`;
-            // Probe first to confirm auth actually works
-            const probe = await fetch(streamUrl, { method: "HEAD" }).catch(() => null);
-            if (probe?.ok || (probe && probe.status >= 200 && probe.status < 400)) {
-              setVideoUrl(streamUrl);
-              setState("ready");
-              return;
-            }
-          }
-        }
-      } catch { /* fall through */ }
-
-      if (cancelled) return;
-
-      // 2. Already signed in via phone auth (persisted across page loads)
-      if (isFirebaseSignedIn()) {
-        const url = await getFirebaseVideoUrl(firebaseId).catch(() => null);
-        if (!cancelled && url) { setVideoUrl(url); setState("ready"); return; }
-      }
-
-      if (!cancelled) setState("phone_needed");
-    }
-    tryLoad();
-    return () => { cancelled = true; };
-  }, [firebaseId]);
-
-  const handleSendOtp = async () => {
-    setPhoneError("");
-    if (!phone.replace(/\D/g, "")) { setPhoneError("Enter your mobile number"); return; }
-    setState("sending_otp");
-    try {
-      await sendOtp(phone, recaptchaRef.current!);
-      setState("otp_input");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setPhoneError(msg.includes("TOO_SHORT") ? "Number too short" : msg.includes("INVALID") ? "Invalid number" : "Failed to send OTP. Check your number.");
-      setState("phone_input");
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setOtpError("");
-    if (otp.length < 4) { setOtpError("Enter the 6-digit code"); return; }
-    setState("verifying");
-    const ok = await confirmOtp(otp);
-    if (!ok) { setOtpError("Wrong code. Try again."); setState("otp_input"); return; }
-    await tryClientUrl();
-  };
-
-  if (state === "loading" || state === "fetching_url") {
-    return (
-      <div className="bg-black rounded-2xl h-64 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-white/60 text-sm">{state === "fetching_url" ? "Fetching video…" : "Loading video…"}</p>
-      </div>
-    );
-  }
-
-  if (state === "ready" && videoUrl) {
-    return (
-      <div className="bg-black rounded-2xl overflow-hidden shadow-2xl">
-        <HlsPlayer src={videoUrl} sessionId={sessionId} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 p-6 text-center">
-      {/* Invisible reCAPTCHA container */}
-      <div ref={recaptchaRef} />
-
-      <div className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center mx-auto mb-4">
-        <ShieldAlert size={28} className="text-amber-400" />
-      </div>
-      <h2 className="text-base font-bold text-white mb-1">{title}</h2>
-
-      {/* Phone input */}
-      {(state === "phone_needed" || state === "phone_input") && (
-        <div className="max-w-xs mx-auto mt-5 space-y-3 text-left">
-          <p className="text-sm text-slate-300 font-semibold text-center">Sign in with your TNC mobile number</p>
-          <p className="text-xs text-slate-500 text-center">You'll receive an OTP via SMS to verify</p>
-          <div className="flex gap-2">
-            <div className="flex items-center bg-slate-700 border border-slate-600 rounded-xl px-3 text-slate-400 text-sm select-none">
-              +91
-            </div>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder="10-digit mobile number"
-              className="flex-1 bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          {phoneError && <p className="text-xs text-red-400">{phoneError}</p>}
-          <button
-            onClick={handleSendOtp}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
-          >
-            Send OTP
-          </button>
-        </div>
-      )}
-
-      {/* Sending OTP spinner */}
-      {state === "sending_otp" && (
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm">Sending OTP to +91 {phone}…</p>
-        </div>
-      )}
-
-      {/* OTP input */}
-      {(state === "otp_input" || state === "verifying") && (
-        <div className="max-w-xs mx-auto mt-5 space-y-3 text-left">
-          <p className="text-sm text-slate-300 font-semibold text-center">Enter the OTP sent to</p>
-          <p className="text-xs text-emerald-400 text-center">+91 {phone}</p>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={otp}
-            onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="6-digit OTP"
-            className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-3 text-white text-lg text-center tracking-[0.4em] placeholder:text-slate-500 placeholder:tracking-normal focus:outline-none focus:border-blue-500"
-          />
-          {otpError && <p className="text-xs text-red-400 text-center">{otpError}</p>}
-          <button
-            onClick={handleVerifyOtp}
-            disabled={state === "verifying"}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
-          >
-            {state === "verifying" ? "Verifying…" : "Verify & Watch"}
-          </button>
-          <button
-            onClick={() => { setState("phone_input"); setOtp(""); setOtpError(""); }}
-            className="w-full text-slate-500 text-xs hover:text-slate-400 py-1 transition-colors"
-          >
-            ← Use a different number
-          </button>
-        </div>
-      )}
-
-      <p className="text-xs text-slate-700 mt-4">ID: {firebaseId.slice(0, 12)}…</p>
-    </div>
-  );
-}
 
 function SecuredVideoCard({ title, firebaseId }: { title: string; firebaseId: string | null }) {
   return (
@@ -491,11 +307,11 @@ export default function WatchPage() {
             ) : (
               <div className="space-y-4">
                 {contentType === "youtube" && session.videoUrl ? (
-                  <VideoPlayer session={session} sessionId={sessionId ?? ""} />
+                  <VideoPlayer session={{ ...session, videoUrl: session.videoUrl ?? null }} sessionId={sessionId ?? ""} />
                 ) : contentType === "pdf" && session.pdfUrl ? (
                   <PdfViewer url={session.pdfUrl} title={session.title} />
                 ) : contentType === "firebase" && firebaseId ? (
-                  <FirebaseVideoPlayer firebaseId={firebaseId} title={session.title} sessionId={sessionId ?? ""} />
+                  <SecuredVideoCard title={session.title} firebaseId={firebaseId} />
                 ) : (
                   <NoContentCard title={session.title} />
                 )}

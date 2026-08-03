@@ -3,7 +3,7 @@ services:
     name: tnc-nursing-app
     env: node
     plan: free
-    buildCommand: npm install -g pnpm@10 --prefix $HOME && export PATH=$HOME/bin:$PATH && pnpm install --frozen-lockfile && PORT=10000 BASE_PATH=/ pnpm --filter @workspace/tnc-web run build && pnpm --filter @workspace/api-server run build
+    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile && PORT=10000 BASE_PATH=/ pnpm --filter @workspace/tnc-web run build && pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:

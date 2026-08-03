@@ -49,7 +49,7 @@ export default defineConfig({
       "react",
       "react-dom",
       "@tanstack/react-query",
-      "@tanstack/query-core",
+      "@tanstack/react-query > @tanstack/query-core",
     ],
   },
   root: path.resolve(import.meta.dirname),

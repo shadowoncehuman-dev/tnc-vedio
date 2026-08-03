@@ -55774,9 +55774,15 @@ async function getCachedFirebaseVideoUrl(fsId) {
 // src/routes/proxy.ts
 var router2 = (0, import_express2.Router)();
 var CRM_BASE = "https://crm.tncnursing.in";
-var ADMIN_PASSWORD = "newtncsite";
-var ADMIN_TOKEN = "admin_tnc_2024_secure_token";
+var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
+var ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 var PROMO_EXPIRES_DAYS = 30;
+if (!ADMIN_PASSWORD) {
+  console.warn("[proxy] ADMIN_PASSWORD env var not set \u2014 admin login disabled");
+}
+if (!ADMIN_TOKEN) {
+  console.warn("[proxy] ADMIN_TOKEN env var not set \u2014 admin actions disabled");
+}
 var promoState = {
   enabled: true,
   expiresAt: new Date(Date.now() + PROMO_EXPIRES_DAYS * 24 * 60 * 60 * 1e3).toISOString()
@@ -56711,11 +56717,15 @@ function initBot() {
       parse_mode: "Markdown"
     };
     if (appUrl) {
-      replyOpts.reply_markup = {
-        inline_keyboard: [[
-          { text: "\u{1F4DA} Open TNC Nursing App", web_app: { url: appUrl } }
-        ]]
-      };
+      const keyboard = [[
+        { text: "\u{1F4DA} Open TNC Nursing App", web_app: { url: appUrl } }
+      ]];
+      if (isAdmin(user?.id)) {
+        keyboard.push([
+          { text: "\u{1F6E1}\uFE0F Admin Panel", web_app: { url: `${appUrl}/admin` } }
+        ]);
+      }
+      replyOpts.reply_markup = { inline_keyboard: keyboard };
     }
     await ctx.reply(
       `\u{1F3E5} *Welcome to TNC Nursing Classes!*
@@ -56726,9 +56736,30 @@ ${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to 
       replyOpts
     );
   });
+  tgBot.command("admin", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      await ctx.reply("\u274C Admin only");
+      return;
+    }
+    if (!appUrl) {
+      await ctx.reply("\u274C RENDER_URL not set \u2014 cannot open admin panel");
+      return;
+    }
+    await ctx.reply(
+      "\u{1F6E1}\uFE0F *Admin Panel*\n\nOpen the TNC admin dashboard:",
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "\u{1F6E1}\uFE0F Open Admin Panel", web_app: { url: `${appUrl}/admin` } }
+          ]]
+        }
+      }
+    );
+  });
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
-    const adminCmds = admin ? "\n\n*Admin Commands:*\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users" : "";
+    const adminCmds = admin ? "\n\n*Admin Commands:*\n/admin \u2014 Open admin panel\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users" : "";
     await ctx.reply(
       `*TNC Nursing Classes Bot*
 
@@ -56882,7 +56913,7 @@ async function setupWebhook(webhookUrl) {
 
 // src/routes/bot.ts
 var router3 = (0, import_express3.Router)();
-var ADMIN_TOKEN2 = process.env.ADMIN_TOKEN ?? "admin_tnc_2024_secure_token";
+var ADMIN_TOKEN2 = process.env.ADMIN_TOKEN ?? "";
 function requireAdmin(req, res) {
   const token = req.headers["x-admin-token"] ?? req.query.adminToken;
   if (token !== ADMIN_TOKEN2) {

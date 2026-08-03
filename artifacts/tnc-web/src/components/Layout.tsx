@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, ShoppingCart, Home, LogOut, Shield, Menu, X, ChevronRight, Brain } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain } from "lucide-react";
 import { isAdmin, clearAdminToken } from "@/lib/auth";
 
 interface LayoutProps {
@@ -13,7 +13,6 @@ const navItems = [
   { path: "/quiz", label: "Quiz", icon: Brain },
   { path: "/enotes", label: "E-Notes", icon: FileText },
   { path: "/courses", label: "Courses", icon: BookOpen },
-  { path: "/buy", label: "Buy", icon: ShoppingCart },
 ];
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -189,8 +188,8 @@ export default function Layout({ children }: LayoutProps) {
           { path: "/", label: "Home", icon: Home },
           { path: "/videos", label: "Videos", icon: Video },
           { path: "/quiz", label: "Quiz", icon: Brain },
+          { path: "/enotes", label: "E-Notes", icon: FileText },
           { path: "/courses", label: "Courses", icon: BookOpen },
-          { path: "/buy", label: "Buy", icon: ShoppingCart },
         ].map(({ path, label, icon: Icon }) => {
           const active = location === path || (path !== "/" && location.startsWith(path));
           return (

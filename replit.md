@@ -34,7 +34,7 @@ India's premier nursing exam prep platform — a full-stack website reverse-engi
 - **CRM API pattern**: POST `/common/` with `{payload: JSON.stringify({fn, se, sch, data, cond})}`. Tables: `t_co` (courses), `t_se` (sessions), `t_sl` (sliders), `t_us` (users), `t_cu` (purchases).
 - **Promo mode** is in-memory server state (resets on server restart). Default: enabled for 30 days.
 - **Auth** is localStorage-only (no server sessions) — userId + token stored as `tnc_user`.
-- **Admin** password hardcoded as `newtncsite`, token `admin_tnc_2024_secure_token`.
+- **Admin** password and token read from env vars `ADMIN_PASSWORD` and `ADMIN_TOKEN` — set as Replit secrets (dev) and in Render dashboard (prod).
 
 ## Product
 
@@ -43,9 +43,8 @@ India's premier nursing exam prep platform — a full-stack website reverse-engi
 - Course detail with full session list (videos + PDFs), locked unless purchased/promo
 - Video player (HLS via hls.js + YouTube iframe embed)
 - PDF viewer (iframe embed of CRM-hosted PDFs)
-- Buy page with Razorpay live payment integration
 - Login/Register using real CRM auth (mobile + password)
-- Admin panel (password: `newtncsite`) with stats, user table, promo mode toggle
+- Admin panel (opened via Telegram bot `/admin` command) with stats, user table, promo mode toggle
 
 ## User preferences
 
@@ -55,8 +54,10 @@ _Populate as you build._
 
 - Always import `z` from `"zod"` (not `"zod/v4"`) in frontend form files — zodResolver from @hookform/resolvers expects zod v3 type signatures
 - CRM sessions (`t_se`) may return `false` for broad queries — handled with fallback in proxy
-- Razorpay key: `rzp_live_in5lCZ8NOaheGp` (live key, real payments)
-- WooCommerce API keys available but not used (no products returned in testing)
+- **Telegram-only**: the frontend blocks direct browser access (`isTelegramWebApp()` check in App.tsx). It only renders when opened as a Telegram Mini App.
+- **Buy page removed** — `/buy` route and nav links are gone. All content access is via promo mode or direct course unlock.
+- **ADMIN_PASSWORD / ADMIN_TOKEN**: must be set as env secrets — admin login returns 401 if not set.
+- `PORT` is optional during `vite build` (only needed for dev server); vite.config.ts defaults to 3000 if unset.
 - Run `pnpm --filter @workspace/api-spec run codegen` after any spec changes, then typecheck
 
 ## Pointers

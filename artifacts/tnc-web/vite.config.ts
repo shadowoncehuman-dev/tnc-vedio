@@ -5,18 +5,8 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+// PORT is only needed for dev/preview server, not for production build
+const port = rawPort ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH;
 
@@ -51,7 +41,7 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
     },
-    dedupe: ["react", "react-dom", "@tanstack/react-query", "@tanstack/query-core"],
+    dedupe: ["react", "react-dom", "@tanstack/react-query"],
     preserveSymlinks: false,
   },
   optimizeDeps: {
@@ -59,6 +49,7 @@ export default defineConfig({
       "react",
       "react-dom",
       "@tanstack/react-query",
+      "@tanstack/query-core",
     ],
   },
   root: path.resolve(import.meta.dirname),

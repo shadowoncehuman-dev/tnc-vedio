@@ -5,9 +5,16 @@ import { getCachedFirebaseVideoUrl, isFirebaseConfigured, isUserAuthConfigured, 
 const router = Router();
 
 const CRM_BASE = "https://crm.tncnursing.in";
-const ADMIN_PASSWORD = "newtncsite";
-const ADMIN_TOKEN = "admin_tnc_2024_secure_token";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 const PROMO_EXPIRES_DAYS = 30;
+
+if (!ADMIN_PASSWORD) {
+  console.warn("[proxy] ADMIN_PASSWORD env var not set — admin login disabled");
+}
+if (!ADMIN_TOKEN) {
+  console.warn("[proxy] ADMIN_TOKEN env var not set — admin actions disabled");
+}
 
 let promoState = {
   enabled: true,

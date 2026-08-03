@@ -114,11 +114,16 @@ export function initBot(): Telegraf | null {
     };
 
     if (appUrl) {
-      replyOpts.reply_markup = {
-        inline_keyboard: [[
-          { text: "📚 Open TNC Nursing App", web_app: { url: appUrl } },
-        ]],
-      };
+      const keyboard: { text: string; web_app: { url: string } }[][] = [[
+        { text: "📚 Open TNC Nursing App", web_app: { url: appUrl } },
+      ]];
+      // Admin gets an extra button for the admin panel
+      if (isAdmin(user?.id)) {
+        keyboard.push([
+          { text: "🛡️ Admin Panel", web_app: { url: `${appUrl}/admin` } },
+        ]);
+      }
+      replyOpts.reply_markup = { inline_keyboard: keyboard };
     }
 
     await ctx.reply(
@@ -127,11 +132,34 @@ export function initBot(): Telegraf | null {
     );
   });
 
+  // /admin — open admin panel as Mini App (admin only)
+  tgBot.command("admin", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) {
+      await ctx.reply("❌ Admin only");
+      return;
+    }
+    if (!appUrl) {
+      await ctx.reply("❌ RENDER_URL not set — cannot open admin panel");
+      return;
+    }
+    await ctx.reply(
+      "🛡️ *Admin Panel*\n\nOpen the TNC admin dashboard:",
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🛡️ Open Admin Panel", web_app: { url: `${appUrl}/admin` } },
+          ]],
+        },
+      } as Parameters<typeof ctx.reply>[1],
+    );
+  });
+
   // /help
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-      ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users"
+      ? "\n\n*Admin Commands:*\n/admin — Open admin panel\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users"
       : "";
     await ctx.reply(
       `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,

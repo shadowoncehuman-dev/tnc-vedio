@@ -3,7 +3,7 @@ services:
     name: tnc-nursing-app
     env: node
     plan: free
-    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/tnc-web run build && pnpm --filter @workspace/api-server run build
+    buildCommand: npm install -g pnpm@10 && pnpm install --frozen-lockfile && PORT=10000 BASE_PATH=/ pnpm --filter @workspace/tnc-web run build && pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
@@ -16,6 +16,10 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: ADMIN_CHAT_ID
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TOKEN
         sync: false
       - key: SESSION_SECRET
         sync: false

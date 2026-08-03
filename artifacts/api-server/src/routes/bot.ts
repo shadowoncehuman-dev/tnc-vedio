@@ -4,7 +4,7 @@ import { bot, upsertBotUser, checkBanned } from "../lib/bot";
 
 const router = Router();
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "admin_tnc_2024_secure_token";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 
 function requireAdmin(req: Request, res: Response): boolean {
   const token =

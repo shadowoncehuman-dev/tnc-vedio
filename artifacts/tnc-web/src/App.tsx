@@ -4,14 +4,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BannedScreen from "@/components/BannedScreen";
-import { getTelegramUser, readyTelegramApp, expandTelegramApp } from "@/lib/telegram";
+import { getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp } from "@/lib/telegram";
 
 import HomePage from "@/pages/home";
 import CoursesPage from "@/pages/courses";
 import CourseDetailPage from "@/pages/course-detail";
 import VideosPage from "@/pages/videos";
 import EnotesPage from "@/pages/enotes";
-import BuyPage from "@/pages/buy";
 import AdminPage from "@/pages/admin";
 import WatchPage from "@/pages/watch";
 import PdfViewerPage from "@/pages/pdf-viewer";
@@ -30,6 +29,24 @@ const queryClient = new QueryClient({
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
+function TelegramGate() {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-8 text-center"
+      style={{ background: "linear-gradient(135deg, #1a237e 0%, #283593 50%, #1565c0 100%)" }}
+    >
+      <div style={{ fontSize: 64, marginBottom: 24 }}>📱</div>
+      <h1 className="text-2xl font-black text-white mb-3">Open in Telegram</h1>
+      <p className="text-white/70 text-sm max-w-xs leading-relaxed">
+        TNC Nursing Classes is only available through the Telegram bot. Please open the app using the button in the bot.
+      </p>
+      <div className="mt-8 px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white/50 text-xs">
+        Direct browser access is not supported
+      </div>
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -40,7 +57,6 @@ function Router() {
       <Route path="/enotes" component={EnotesPage} />
       <Route path="/quiz" component={QuizPage} />
       <Route path="/quiz/:examId" component={QuizTakePage} />
-      <Route path="/buy" component={BuyPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/watch/:sessionId" component={WatchPage} />
       <Route path="/pdf/:sessionId" component={PdfViewerPage} />
@@ -49,21 +65,20 @@ function Router() {
   );
 }
 
-function App() {
+// Inner app — only rendered when inside Telegram
+function AppInner() {
   const [banned, setBanned] = useState(false);
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    // Initialize Telegram WebApp
     readyTelegramApp();
     expandTelegramApp();
 
     const tgUser = getTelegramUser();
-    if (!tgUser) return; // Not opened from Telegram, skip ban check
+    if (!tgUser) return;
 
     setChecking(true);
 
-    // Register Telegram user + check ban status
     fetch(`${BASE}/api/bot/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,7 +100,6 @@ function App() {
   }, []);
 
   if (banned) return <BannedScreen />;
-  // Show nothing briefly while ban check runs (< 1s)
   if (checking) return null;
 
   return (
@@ -98,6 +112,14 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
+}
+
+function App() {
+  // Block direct browser access — only works inside Telegram Mini App
+  if (!isTelegramWebApp()) {
+    return <TelegramGate />;
+  }
+  return <AppInner />;
 }
 
 export default App;

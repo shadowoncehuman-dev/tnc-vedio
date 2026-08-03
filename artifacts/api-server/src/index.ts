@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { initBot, setupWebhook } from "./lib/bot";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,15 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Initialize Telegram bot
+  const botInstance = initBot();
+  if (botInstance) {
+    const renderUrl = process.env.RENDER_URL;
+    if (renderUrl) {
+      setupWebhook(`${renderUrl}/api/bot/webhook`);
+    } else {
+      logger.info("RENDER_URL not set — bot webhook not configured (set it after deploying to Render)");
+    }
+  }
 });

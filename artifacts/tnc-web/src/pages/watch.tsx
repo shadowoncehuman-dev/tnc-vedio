@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, useListSessions, getListSessionsQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle } from "lucide-react";
+import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
@@ -15,22 +15,44 @@ function getApiUrl(path: string) {
 function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
+  const [buffering, setBuffering] = useState(true);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     setError(false);
+    setBuffering(true);
     let cleanup: (() => void) | undefined;
 
     const isHls = src.includes(".m3u8");
     const isProxied = src.startsWith("/api/media-proxy");
 
+    const onCanPlay = () => setBuffering(false);
+    const onWaiting = () => setBuffering(true);
+    const onPlaying = () => setBuffering(false);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+
     if (isHls && !isProxied) {
       import("hls.js").then(({ default: Hls }) => {
         if (Hls.isSupported()) {
-          const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            startLevel: -1,           // auto quality
+            maxBufferLength: 30,      // 30s buffer
+            maxMaxBufferLength: 60,
+            backBufferLength: 10,
+            abrEwmaFastLive: 3.0,
+            abrEwmaSlowLive: 9.0,
+            progressive: true,
+          });
           hls.loadSource(src);
           hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setBuffering(false);
+          });
           hls.on(Hls.Events.ERROR, (_e, data) => {
             if (data.fatal) setError(true);
           });
@@ -54,7 +76,12 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       };
     }
 
-    return () => cleanup?.();
+    return () => {
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      cleanup?.();
+    };
   }, [src, sessionId]);
 
   if (error) {
@@ -73,16 +100,24 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   }
 
   return (
-    <video
-      ref={videoRef}
-      controls
-      playsInline
-      className="w-full max-h-[70vh] bg-black rounded-xl"
-      data-testid="video-player"
-      controlsList="nodownload"
-    >
-      Your browser does not support video playback.
-    </video>
+    <div className="relative">
+      {buffering && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl z-10 pointer-events-none">
+          <Loader2 size={40} className="text-white animate-spin" />
+        </div>
+      )}
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        preload="metadata"
+        className="w-full max-h-[70vh] bg-black rounded-xl"
+        data-testid="video-player"
+        controlsList="nodownload"
+      >
+        Your browser does not support video playback.
+      </video>
+    </div>
   );
 }
 
@@ -102,6 +137,7 @@ function YouTubeEmbed({ url }: { url: string }) {
         className="absolute inset-0 w-full h-full rounded-xl"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
+        loading="lazy"
         data-testid="youtube-embed"
         title="Video lecture"
       />
@@ -131,13 +167,13 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
           className="w-full"
           style={{ height: "75vh" }}
           title={title}
+          loading="lazy"
           data-testid="pdf-viewer"
         />
       </div>
     </div>
   );
 }
-
 
 function FsVideoPlayer({ firebaseId, title }: { firebaseId: string; title: string }) {
   const playerUrl = `https://videoplay.tncnursing.in/videos/fs/index.html?${encodeURIComponent(firebaseId)}`;
@@ -149,6 +185,7 @@ function FsVideoPlayer({ firebaseId, title }: { firebaseId: string; title: strin
         allowFullScreen
         allow="autoplay; fullscreen; picture-in-picture"
         title={title}
+        loading="eager"
         data-testid="fs-video-player"
         referrerPolicy="origin"
       />

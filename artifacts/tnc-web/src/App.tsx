@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BannedScreen from "@/components/BannedScreen";
-import { getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp } from "@/lib/telegram";
+import { getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp, openExternalLink } from "@/lib/telegram";
 
 import HomePage from "@/pages/home";
 import CoursesPage from "@/pages/courses";
@@ -14,9 +14,17 @@ import EnotesPage from "@/pages/enotes";
 import AdminPage from "@/pages/admin";
 import WatchPage from "@/pages/watch";
 import PdfViewerPage from "@/pages/pdf-viewer";
-import QuizPage from "@/pages/quiz";
-import QuizTakePage from "@/pages/quiz-take";
 import NotFound from "@/pages/not-found";
+
+const TEST_SERIES_URL = "https://test-sagar-jet.vercel.app/tnc-tests";
+
+// Redirect component — immediately opens the external test series and goes back
+function TestSeriesRedirect() {
+  useEffect(() => {
+    openExternalLink(TEST_SERIES_URL);
+  }, []);
+  return null;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,8 +63,8 @@ function Router() {
       <Route path="/courses/:courseId" component={CourseDetailPage} />
       <Route path="/videos" component={VideosPage} />
       <Route path="/enotes" component={EnotesPage} />
-      <Route path="/quiz" component={QuizPage} />
-      <Route path="/quiz/:examId" component={QuizTakePage} />
+      <Route path="/quiz" component={TestSeriesRedirect} />
+      <Route path="/quiz/:examId" component={TestSeriesRedirect} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/watch/:sessionId" component={WatchPage} />
       <Route path="/pdf/:sessionId" component={PdfViewerPage} />

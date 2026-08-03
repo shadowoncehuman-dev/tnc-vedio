@@ -2,15 +2,22 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain } from "lucide-react";
 import { isAdmin, clearAdminToken } from "@/lib/auth";
+import { openExternalLink } from "@/lib/telegram";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
+const TEST_SERIES_URL = "https://test-sagar-jet.vercel.app/tnc-tests";
+
+type NavItem =
+  | { path: string; label: string; icon: React.ElementType; external?: undefined }
+  | { path: string; label: string; icon: React.ElementType; external: string };
+
+const navItems: NavItem[] = [
   { path: "/", label: "Home", icon: Home },
   { path: "/videos", label: "Videos", icon: Video },
-  { path: "/quiz", label: "Quiz", icon: Brain },
+  { path: "/quiz", label: "Quiz", icon: Brain, external: TEST_SERIES_URL },
   { path: "/enotes", label: "E-Notes", icon: FileText },
   { path: "/courses", label: "Courses", icon: BookOpen },
 ];
@@ -60,19 +67,26 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Nav links */}
             <nav className="flex items-center gap-1">
-              {navItems.map(({ path, label, icon: Icon }) => {
-                const active = location === path || (path !== "/" && location.startsWith(path));
+              {navItems.map(({ path, label, icon: Icon, external }) => {
+                const active = !external && (location === path || (path !== "/" && location.startsWith(path)));
+                const baseClass = `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  active ? "bg-white/20 text-white" : "text-white/80 hover:text-white hover:bg-white/10"
+                }`;
+                if (external) {
+                  return (
+                    <button
+                      key={path}
+                      onClick={() => openExternalLink(external)}
+                      className={baseClass}
+                      data-testid={`nav-${label.toLowerCase()}`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  );
+                }
                 return (
-                  <Link
-                    key={path}
-                    href={path}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      active
-                        ? "bg-white/20 text-white"
-                        : "text-white/80 hover:text-white hover:bg-white/10"
-                    }`}
-                    data-testid={`nav-${label.toLowerCase()}`}
-                  >
+                  <Link key={path} href={path} className={baseClass} data-testid={`nav-${label.toLowerCase()}`}>
                     <Icon size={16} />
                     {label}
                   </Link>
@@ -138,21 +152,39 @@ export default function Layout({ children }: LayoutProps) {
         {/* Mobile drawer */}
         {mobileMenuOpen && (
           <div className="absolute top-14 left-0 right-0 bg-white shadow-xl border-b z-50 py-2">
-            {navItems.map(({ path, label, icon: Icon }) => (
-              <Link
-                key={path}
-                href={path}
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                data-testid={`mobile-nav-${label.toLowerCase()}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon size={18} />
-                  {label}
-                </div>
-                <ChevronRight size={16} className="text-gray-400" />
-              </Link>
-            ))}
+            {navItems.map(({ path, label, icon: Icon, external }) => {
+              if (external) {
+                return (
+                  <button
+                    key={path}
+                    onClick={() => { openExternalLink(external); setMobileMenuOpen(false); }}
+                    className="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                    data-testid={`mobile-nav-${label.toLowerCase()}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={18} />
+                      {label}
+                    </div>
+                    <ChevronRight size={16} className="text-gray-400" />
+                  </button>
+                );
+              }
+              return (
+                <Link
+                  key={path}
+                  href={path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                  data-testid={`mobile-nav-${label.toLowerCase()}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} />
+                    {label}
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400" />
+                </Link>
+              );
+            })}
             {admin && (
               <div className="border-t mt-2 pt-2 px-4 space-y-1">
                 <Link
@@ -184,21 +216,29 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile Bottom Tabs */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40 flex" style={{ backgroundColor: "hsl(var(--card))" }}>
-        {[
-          { path: "/", label: "Home", icon: Home },
-          { path: "/videos", label: "Videos", icon: Video },
-          { path: "/quiz", label: "Quiz", icon: Brain },
-          { path: "/enotes", label: "E-Notes", icon: FileText },
-          { path: "/courses", label: "Courses", icon: BookOpen },
-        ].map(({ path, label, icon: Icon }) => {
-          const active = location === path || (path !== "/" && location.startsWith(path));
+        {navItems.map(({ path, label, icon: Icon, external }) => {
+          const active = !external && (location === path || (path !== "/" && location.startsWith(path)));
+          const baseClass = `flex-1 flex flex-col items-center justify-center py-2 text-xs font-medium transition-colors ${
+            active ? "text-blue-600" : "text-gray-500"
+          }`;
+          if (external) {
+            return (
+              <button
+                key={path}
+                onClick={() => openExternalLink(external)}
+                className={baseClass}
+                data-testid={`tab-${label.toLowerCase()}`}
+              >
+                <Brain size={20} strokeWidth={1.8} />
+                <span className="mt-0.5 text-[10px]">{label}</span>
+              </button>
+            );
+          }
           return (
             <Link
               key={path}
               href={path}
-              className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-medium transition-colors ${
-                active ? "text-blue-600" : "text-gray-500"
-              }`}
+              className={baseClass}
               data-testid={`tab-${label.toLowerCase()}`}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />

@@ -90,3 +90,16 @@ export function readyTelegramApp(): void {
     // not in Telegram
   }
 }
+
+export function openExternalLink(url: string): void {
+  try {
+    const tg = window.Telegram?.WebApp as (TelegramWebApp & { openLink?: (url: string) => void }) | undefined;
+    if (tg?.openLink) {
+      tg.openLink(url);
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  } catch {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}

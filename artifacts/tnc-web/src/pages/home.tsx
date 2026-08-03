@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import Layout from "@/components/Layout";
 import { getStreakData } from "@/lib/streak";
 import { getUser } from "@/lib/auth";
+import { openExternalLink } from "@/lib/telegram";
 
 function SliderCarousel() {
   const { data: sliders, isLoading } = useGetSliders();
@@ -145,12 +146,12 @@ function StreakWidget() {
           >
             <Video size={14} /> Watch a video
           </Link>
-          <Link
-            href="/quiz"
+          <button
+            onClick={() => openExternalLink("https://test-sagar-jet.vercel.app/tnc-tests")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-sm font-semibold transition-colors"
           >
             <Brain size={14} /> Take a quiz
-          </Link>
+          </button>
         </div>
       </div>
     </motion.div>
@@ -413,13 +414,17 @@ export default function HomePage() {
                   { path: "/courses", label: "Courses" },
                   { path: "/videos", label: "Videos" },
                   { path: "/enotes", label: "E-Notes" },
-                  { path: "/quiz", label: "Mock Tests" },
-                  { path: "/buy", label: "Buy Courses" },
                 ].map(({ path, label }) => (
                   <Link key={path} href={path} className="block text-white/70 hover:text-white text-sm transition-colors">
                     {label}
                   </Link>
                 ))}
+                <button
+                  onClick={() => openExternalLink("https://test-sagar-jet.vercel.app/tnc-tests")}
+                  className="block text-white/70 hover:text-white text-sm transition-colors text-left"
+                >
+                  Mock Tests
+                </button>
               </div>
             </div>
             <div>

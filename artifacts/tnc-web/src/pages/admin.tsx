@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 
-const ADMIN_TOKEN_HEADER = "admin_tnc_2024_secure_token";
 const QUICK_DAYS = [7, 14, 30, 60, 90];
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -111,7 +110,7 @@ function PromoManager() {
 
   async function handleTogglePromo(enabled: boolean, days = customDays) {
     togglePromo.mutate(
-      { data: { enabled, durationDays: days, adminToken: ADMIN_TOKEN_HEADER } },
+      { data: { enabled, durationDays: days, adminToken: getAdminToken() ?? "" } },
       {
         onSuccess: (res) => {
           queryClient.invalidateQueries({ queryKey: getGetPromoStatusQueryKey() });
@@ -132,7 +131,7 @@ function PromoManager() {
       const resp = await fetch(`${BASE}/api/promo/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationDays: days, adminToken: ADMIN_TOKEN_HEADER }),
+        body: JSON.stringify({ durationDays: days, adminToken: getAdminToken() ?? "" }),
       });
       const data = await resp.json() as { message: string; expiresAt: string };
       queryClient.invalidateQueries({ queryKey: getGetPromoStatusQueryKey() });

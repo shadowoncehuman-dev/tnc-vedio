@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, useListSessions, getListSessionsQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2, Maximize } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
@@ -10,6 +10,21 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 function getApiUrl(path: string) {
   return `${BASE}${path}`;
+}
+
+function requestVideoFullscreen(video: HTMLVideoElement) {
+  type VideoWithWebkit = HTMLVideoElement & {
+    webkitEnterFullscreen?: () => void;
+    webkitRequestFullscreen?: () => void;
+  };
+  const v = video as VideoWithWebkit;
+  if (v.requestFullscreen) {
+    v.requestFullscreen().catch(() => v.webkitEnterFullscreen?.());
+  } else if (v.webkitEnterFullscreen) {
+    v.webkitEnterFullscreen(); // iOS Safari / Telegram WebView
+  } else if (v.webkitRequestFullscreen) {
+    v.webkitRequestFullscreen();
+  }
 }
 
 function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
@@ -118,6 +133,15 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       >
         Your browser does not support video playback.
       </video>
+      {/* Explicit fullscreen button for Telegram WebView / iOS where native controls fullscreen is blocked */}
+      <button
+        onClick={() => videoRef.current && requestVideoFullscreen(videoRef.current)}
+        className="absolute bottom-2 right-2 z-20 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-colors"
+        aria-label="Fullscreen"
+        data-testid="btn-fullscreen"
+      >
+        <Maximize size={16} />
+      </button>
     </div>
   );
 }

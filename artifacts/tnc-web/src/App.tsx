@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BannedScreen from "@/components/BannedScreen";
+import PageLoader from "@/components/PageLoader";
 import { getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp, openExternalLink } from "@/lib/telegram";
 
 import HomePage from "@/pages/home";
@@ -37,24 +38,6 @@ const queryClient = new QueryClient({
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
-function TelegramGate() {
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-8 text-center"
-      style={{ background: "linear-gradient(135deg, #1a237e 0%, #283593 50%, #1565c0 100%)" }}
-    >
-      <div style={{ fontSize: 64, marginBottom: 24 }}>📱</div>
-      <h1 className="text-2xl font-black text-white mb-3">Open in Telegram</h1>
-      <p className="text-white/70 text-sm max-w-xs leading-relaxed">
-        TNC Nursing Classes is only available through the Telegram bot. Please open the app using the button in the bot.
-      </p>
-      <div className="mt-8 px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white/50 text-xs">
-        Direct browser access is not supported
-      </div>
-    </div>
-  );
-}
-
 function Router() {
   return (
     <Switch>
@@ -73,42 +56,47 @@ function Router() {
   );
 }
 
-// Inner app — only rendered when inside Telegram
-function AppInner() {
+function App() {
   const [banned, setBanned] = useState(false);
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    readyTelegramApp();
-    expandTelegramApp();
+    // If inside Telegram, do Telegram-specific setup
+    if (isTelegramWebApp()) {
+      readyTelegramApp();
+      expandTelegramApp();
+    }
 
     const tgUser = getTelegramUser();
-    if (!tgUser) return;
 
-    setChecking(true);
-
-    fetch(`${BASE}/api/bot/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        telegramId: tgUser.id,
-        firstName: tgUser.first_name,
-        lastName: tgUser.last_name,
-        username: tgUser.username,
-      }),
-    })
-      .then((r) => r.json())
-      .then((data: { banned?: boolean }) => {
-        if (data.banned) setBanned(true);
+    if (tgUser) {
+      // Register/check ban status for Telegram users
+      fetch(`${BASE}/api/bot/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramId: tgUser.id,
+          firstName: tgUser.first_name,
+          lastName: tgUser.last_name,
+          username: tgUser.username,
+        }),
       })
-      .catch(() => {
-        // If check fails, allow access rather than blocking
-      })
-      .finally(() => setChecking(false));
+        .then((r) => r.json())
+        .then((data: { banned?: boolean }) => {
+          if (data.banned) setBanned(true);
+        })
+        .catch(() => {
+          // If check fails, allow access
+        })
+        .finally(() => setChecking(false));
+    } else {
+      // Non-Telegram browser — skip registration, go straight to app
+      setChecking(false);
+    }
   }, []);
 
+  if (checking) return <PageLoader />;
   if (banned) return <BannedScreen />;
-  if (checking) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -120,14 +108,6 @@ function AppInner() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-}
-
-function App() {
-  // Block direct browser access — only works inside Telegram Mini App
-  if (!isTelegramWebApp()) {
-    return <TelegramGate />;
-  }
-  return <AppInner />;
 }
 
 export default App;

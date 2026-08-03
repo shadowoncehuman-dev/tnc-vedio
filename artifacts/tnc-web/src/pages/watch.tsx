@@ -100,9 +100,9 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
       {buffering && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl z-10 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
           <Loader2 size={40} className="text-white animate-spin" />
         </div>
       )}
@@ -111,9 +111,10 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
         controls
         playsInline
         preload="metadata"
-        className="w-full max-h-[70vh] bg-black rounded-xl"
+        className="absolute inset-0 w-full h-full bg-black"
         data-testid="video-player"
         controlsList="nodownload"
+        style={{ objectFit: "contain" }}
       >
         Your browser does not support video playback.
       </video>

@@ -259,7 +259,7 @@ function BotUsersPanel() {
     setLoading(true);
     try {
       const resp = await fetch(`${BASE}/api/bot/users?page=${p}&limit=20`, {
-        headers: { "x-admin-token": ADMIN_TOKEN_HEADER },
+        headers: { "x-admin-token": getAdminToken() ?? "" },
       });
       if (!resp.ok) throw new Error("Failed");
       const data = await resp.json() as { users: BotUserItem[]; total: number; banned: number };
@@ -281,7 +281,7 @@ function BotUsersPanel() {
     try {
       const resp = await fetch(`${BASE}/api/bot/users/${telegramId}/${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": ADMIN_TOKEN_HEADER },
+        headers: { "Content-Type": "application/json", "x-admin-token": getAdminToken() ?? "" },
         body: JSON.stringify({ reason: "Banned by admin via panel" }),
       });
       if (!resp.ok) throw new Error("Failed");

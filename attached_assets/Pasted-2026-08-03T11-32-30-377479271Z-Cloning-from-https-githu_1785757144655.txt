@@ -1,0 +1,79 @@
+2026-08-03T11:32:30.377479271Z ==> Cloning from https://github.com/shadowoncehuman-dev/tnc-vedio
+2026-08-03T11:32:32.487436499Z ==> Checking out commit 725d79fc14ed64fb08080bc8ba19d40f95d43f7f in branch main
+2026-08-03T11:32:33.992449921Z ==> Using Node.js version 24.14.1 (default)
+2026-08-03T11:32:33.993363806Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-08-03T11:32:34.020896146Z ==> Running build command 'bash build.sh'...
+2026-08-03T11:32:40.826690333Z 
+2026-08-03T11:32:40.826709858Z > @workspace/tnc-web@0.0.0 build /opt/render/project/src/artifacts/tnc-web
+2026-08-03T11:32:40.826713782Z > vite build --config vite.config.ts
+2026-08-03T11:32:40.82671485Z 
+2026-08-03T11:32:41.03779534Z vite v7.3.3 building client environment for production...
+2026-08-03T11:32:41.088934084Z transforming...
+2026-08-03T11:32:41.405337388Z src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-08-03T11:32:42.509948239Z src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-08-03T11:32:43.65960794Z ✓ 2206 modules transformed.
+2026-08-03T11:32:43.917821256Z rendering chunks...
+2026-08-03T11:32:43.984780615Z computing gzip size...
+2026-08-03T11:32:44.002034519Z 
+2026-08-03T11:32:44.002035045Z dist/public/index.html                   1.59 kB │ gzip:   0.61 kB
+2026-08-03T11:32:44.002051773Z (!) Some chunks are larger than 500 kB after minification. Consider:
+2026-08-03T11:32:44.002053859Z - Using dynamic import() to code-split the application
+2026-08-03T11:32:44.002055116Z - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2026-08-03T11:32:44.00205615Z - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+2026-08-03T11:32:44.002060894Z dist/public/assets/index-DQ9f0yz-.css  144.80 kB │ gzip:  22.84 kB
+2026-08-03T11:32:44.002062017Z dist/public/assets/hls-D1fSjlvU.js     523.08 kB │ gzip: 162.11 kB
+2026-08-03T11:32:44.002062983Z dist/public/assets/index-BLWxR7-U.js   627.54 kB │ gzip: 191.80 kB
+2026-08-03T11:32:44.002098446Z ✓ built in 2.94s
+2026-08-03T11:32:44.683180786Z 
+2026-08-03T11:32:44.683196705Z > @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+2026-08-03T11:32:44.683198248Z > node ./build.mjs
+2026-08-03T11:32:44.683199008Z 
+2026-08-03T11:32:44.986082915Z 
+2026-08-03T11:32:44.986097075Z   dist/index.mjs                       2.5mb ⚠️
+2026-08-03T11:32:44.986098332Z   dist/pino-worker.mjs               153.4kb
+2026-08-03T11:32:44.986099432Z   dist/pino-file.mjs                 142.1kb
+2026-08-03T11:32:44.986100249Z   dist/pino-pretty.mjs               114.6kb
+2026-08-03T11:32:44.986100978Z   dist/thread-stream-worker.mjs        7.3kb
+2026-08-03T11:32:44.98610185Z   dist/index.mjs.map                   4.3mb
+2026-08-03T11:32:44.986102698Z   dist/pino-worker.mjs.map           256.9kb
+2026-08-03T11:32:44.986103492Z   dist/pino-file.mjs.map             229.0kb
+2026-08-03T11:32:44.986104251Z   dist/pino-pretty.mjs.map           204.0kb
+2026-08-03T11:32:44.986105041Z   dist/thread-stream-worker.mjs.map   12.0kb
+2026-08-03T11:32:44.986111483Z 
+2026-08-03T11:32:44.98611453Z ⚡ Done in 263ms
+2026-08-03T11:32:46.027293476Z ==> Uploading build...
+2026-08-03T11:32:52.955751978Z ==> Uploaded in 4.9s. Compression took 2.0s
+2026-08-03T11:32:52.958215598Z ==> Build successful 🎉
+2026-08-03T11:32:55.813048058Z ==> Deploying...
+2026-08-03T11:32:55.88128471Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-08-03T11:33:20.238486411Z ==> Running 'node --enable-source-maps artifacts/api-server/dist/index.mjs'
+2026-08-03T11:33:21.934646984Z (node:70) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-08-03T11:33:21.934665895Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-08-03T11:33:22.029506436Z {"level":30,"time":1785756801930,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","frontendDist":"/opt/render/project/src/artifacts/tnc-web/dist/public","msg":"Serving frontend static files"}
+2026-08-03T11:33:22.133378318Z (node:70) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-08-03T11:33:22.13535667Z {"level":30,"time":1785756801935,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","port":10000,"msg":"Server listening"}
+2026-08-03T11:33:22.135370791Z {"level":30,"time":1785756801936,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","msg":"Telegram bot initialized"}
+2026-08-03T11:33:22.632756694Z {"level":30,"time":1785756802632,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","webhookUrl":"https://tnc-vedio.onrender.com/api/bot/webhook","msg":"Telegram webhook configured"}
+2026-08-03T11:33:22.672734547Z {"level":30,"time":1785756802672,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+2026-08-03T11:33:26.819878689Z ==> Your service is live 🎉
+2026-08-03T11:33:26.871721368Z {"level":30,"time":1785756806871,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":2,"method":"GET","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}
+2026-08-03T11:33:26.884676044Z ==> 
+2026-08-03T11:33:26.887383598Z ==> ///////////////////////////////////////////////////////////
+2026-08-03T11:33:26.890428288Z ==> 
+2026-08-03T11:33:26.892859821Z ==> Available at your primary URL https://tnc-vedio.onrender.com
+2026-08-03T11:33:26.894995742Z ==> 
+2026-08-03T11:33:26.897308067Z ==> ///////////////////////////////////////////////////////////
+2026-08-03T11:33:28.439595461Z {"level":50,"time":1785756807236,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","err":{"message":"Failed query: select \"id\", \"telegram_id\", \"username\", \"first_name\", \"last_name\", \"is_banned\", \"banned_at\", \"banned_reason\", \"first_seen\", \"last_seen\" from \"bot_users\" where \"bot_users\".\"telegram_id\" = $1 limit $2\nparams: 6412752484,1: Invalid URL","params":[6412752484,1],"query":"select \"id\", \"telegram_id\", \"username\", \"first_name\", \"last_name\", \"is_banned\", \"banned_at\", \"banned_reason\", \"first_seen\", \"last_seen\" from \"bot_users\" where \"bot_users\".\"telegram_id\" = $1 limit $2","stack":"Error: Failed query: select \"id\", \"telegram_id\", \"username\", \"first_name\", \"last_name\", \"is_banned\", \"banned_at\", \"banned_reason\", \"first_seen\", \"last_seen\" from \"bot_users\" where \"bot_users\".\"telegram_id\" = $1 limit $2\nparams: 6412752484,1\n    at NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:73:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:154:19)\ncaused by: TypeError: Invalid URL\n    at new URL (node:internal/url:819:25)\n    at parse (/opt/render/project/src/node_modules/.pnpm/pg-connection-string@2.12.0/node_modules/pg-connection-string/index.js:30:16)\n    at new ConnectionParameters (/opt/render/project/src/node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/connection-parameters.js:60:42)\n    at new Client2 (/opt/render/project/src/node_modules/.pnpm/pg@8.20.0/node_modules/pg/lib/client.js:43:33)\n    at BoundPool.newClient (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:241:20)\n    at BoundPool.connect (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:235:10)\n    at BoundPool.query (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:449:10)\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:161:26)\n    at NodePgPreparedQuery.queryWithCache (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/pg-core/session.ts:71:18)\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/drizzle-orm@0.45.2_@types+pg@8.20.0_pg@8.20.0/node_modules/src/node-postgres/session.ts:160:17)","type":"_DrizzleQueryError"},"msg":"Failed to upsert bot user"}
+2026-08-03T11:33:28.442304503Z {"level":30,"time":1785756808442,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":3,"method":"POST","url":"/api/bot/register"},"res":{"statusCode":200},"responseTime":1258,"msg":"request completed"}
+2026-08-03T11:33:38.418597945Z {"level":30,"time":1785756818418,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":4,"method":"POST","url":"/api/admin/login"},"res":{"statusCode":200},"responseTime":1,"msg":"request completed"}
+2026-08-03T11:33:39.436029744Z {"level":30,"time":1785756819435,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":7,"method":"GET","url":"/api/promo/status"},"res":{"statusCode":200},"responseTime":498,"msg":"request completed"}
+2026-08-03T11:33:49.363433134Z {"level":30,"time":1785756829363,"pid":70,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":8,"method":"GET","url":"/api/bot/users"},"res":{"statusCode":401},"responseTime":2,"msg":"request completed"}
+2026-08-03T11:34:19.398615009Z ==> Running 'node --enable-source-maps artifacts/api-server/dist/index.mjs'
+2026-08-03T11:34:21.09814316Z {"level":30,"time":1785756861097,"pid":52,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","frontendDist":"/opt/render/project/src/artifacts/tnc-web/dist/public","msg":"Serving frontend static files"}
+2026-08-03T11:34:21.1011373Z (node:52) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-08-03T11:34:21.10115304Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-08-03T11:34:21.199382601Z (node:52) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-08-03T11:34:21.200988574Z {"level":30,"time":1785756861101,"pid":52,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","port":10000,"msg":"Server listening"}
+2026-08-03T11:34:21.201001244Z {"level":30,"time":1785756861102,"pid":52,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","msg":"Telegram bot initialized"}
+2026-08-03T11:34:21.688472704Z {"level":30,"time":1785756861688,"pid":52,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","webhookUrl":"https://tnc-vedio.onrender.com/api/bot/webhook","msg":"Telegram webhook configured"}
+2026-08-03T11:34:26.373949765Z {"level":30,"time":1785756866373,"pid":52,"hostname":"srv-d9o44i7lk1mc73fsuihg-hibernate-89ccf4c6b-p97ns","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":200},"responseTime":3,"msg":"request completed"}

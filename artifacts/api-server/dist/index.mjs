@@ -32595,7 +32595,7 @@ var logger = (0, import_pino.default)({
 // src/lib/firebase-rest.ts
 import { createSign } from "crypto";
 var FIREBASE_API_KEY = "AIzaSyD8LTjLjo89KpUzvHLpjwODOGj9UKb2H8c";
-var BUCKET = "team-nursing-classes-818e5.appspot.com";
+var BUCKET = "shivangi-nursing-academy-818e5.appspot.com";
 var VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
 var userToken = null;
 function isUserAuthConfigured() {

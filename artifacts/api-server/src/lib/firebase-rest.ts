@@ -9,7 +9,7 @@ import { createSign } from "crypto";
 import type { Response } from "express";
 
 const FIREBASE_API_KEY = "AIzaSyD8LTjLjo89KpUzvHLpjwODOGj9UKb2H8c";
-const BUCKET = "team-nursing-classes-818e5.appspot.com";
+const BUCKET = "shivangi-nursing-academy-818e5.appspot.com";
 const VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
 
 // ─────────────────────────────────────────────

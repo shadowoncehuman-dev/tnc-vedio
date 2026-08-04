@@ -368,6 +368,45 @@ router.get("/media-proxy", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+// GET /api/notes — PDF-only sessions per course (or newest 60 across all courses)
+router.get("/notes", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId, limit: limitParam } = req.query;
+    const cond: Record<string, unknown> = {};
+    if (courseId) cond.co_refid = courseId;
+
+    const data = await crmQuery({
+      fn: "common_fn", se: "fe", sch: "t_ch",
+      data: { json: "*" }, cond,
+    });
+
+    if (!Array.isArray(data)) {
+      res.json([]);
+      return;
+    }
+
+    const sessions = (data as Record<string, unknown>[])
+      .map(parseChapter)
+      .filter((s) => s.pdfUrl || s.contentType === "pdf");
+
+    // Sort by serial number within a course, newest first globally
+    sessions.sort((a, b) => {
+      if (courseId) {
+        const aNo = parseFloat(String(a.serialNo)) || 0;
+        const bNo = parseFloat(String(b.serialNo)) || 0;
+        return aNo - bNo;
+      }
+      return String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? ""));
+    });
+
+    const limit = courseId ? sessions.length : Math.min(parseInt(String(limitParam ?? "60")), 200);
+    res.json(sessions.slice(0, limit));
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch notes");
+    res.status(500).json({ error: "Failed to fetch notes" });
+  }
+});
+
 // GET /api/sessions — queries t_ch (real video sessions) with pagination + sort
 router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
   try {

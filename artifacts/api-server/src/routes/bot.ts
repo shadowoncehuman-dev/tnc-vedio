@@ -1,6 +1,13 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { bot, upsertBotUser, checkBanned } from "../lib/bot";
+import {
+  listUsers,
+  banUser,
+  unbanUser,
+  checkBannedStore,
+  getStats,
+} from "../lib/user-store";
 
 const router = Router();
 
@@ -15,16 +22,6 @@ function requireAdmin(req: Request, res: Response): boolean {
     return false;
   }
   return true;
-}
-
-async function getDb() {
-  try {
-    const { db, botUsersTable } = await import("@workspace/db");
-    const { eq, desc } = await import("drizzle-orm");
-    return { db, botUsersTable, eq, desc };
-  } catch {
-    return null;
-  }
 }
 
 // POST /api/bot/webhook — Telegram sends updates here
@@ -61,13 +58,13 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       last_name: lastName,
       username,
     });
-    const banStatus = await checkBanned(telegramId);
+    const banStatus = checkBannedStore(telegramId);
     res.json({
       success: true,
       banned: banStatus.banned,
       reason: banStatus.reason,
       telegramId: String(telegramId),
-      user: user ? { ...user, telegramId: String((user as Record<string, unknown>).telegramId) } : null,
+      user,
     });
   } catch (err) {
     logger.error({ err }, "Failed to register bot user");
@@ -91,61 +88,40 @@ router.get("/check-ban/:telegramId", async (req: Request, res: Response): Promis
   }
 });
 
-// GET /api/bot/users — List bot users (admin)
-router.get("/users", async (req: Request, res: Response): Promise<void> => {
+// GET /api/bot/users — List bot users (admin) — served from in-memory store
+router.get("/users", (req: Request, res: Response): void => {
   if (!requireAdmin(req, res)) return;
-  const ctx = await getDb();
-  if (!ctx) { res.status(503).json({ error: "Database not available" }); return; }
-  const { db, botUsersTable, desc } = ctx;
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const [users, allUsers] = await Promise.all([
-      db.select().from(botUsersTable).orderBy(desc(botUsersTable.firstSeen)).limit(limit).offset((page - 1) * limit),
-      db.select().from(botUsersTable),
-    ]);
-    res.json({
-      users: users.map((u) => ({ ...u, telegramId: String(u.telegramId) })),
-      total: allUsers.length,
-      banned: allUsers.filter((u) => u.isBanned).length,
-      page,
-      limit,
-    });
+    const { users, total, banned } = listUsers(page, limit);
+    res.json({ users, total, banned, page, limit });
   } catch (err) {
-    logger.error({ err }, "Failed to fetch bot users");
+    logger.error({ err }, "Failed to list bot users");
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
 // GET /api/bot/stats — Bot stats (admin)
-router.get("/stats", async (req: Request, res: Response): Promise<void> => {
+router.get("/stats", (req: Request, res: Response): void => {
   if (!requireAdmin(req, res)) return;
-  const ctx = await getDb();
-  if (!ctx) { res.json({ total: 0, banned: 0, active: 0 }); return; }
-  const { db, botUsersTable } = ctx;
-  try {
-    const users = await db.select().from(botUsersTable);
-    const total = users.length;
-    const banned = users.filter((u) => u.isBanned).length;
-    res.json({ total, banned, active: total - banned });
-  } catch {
-    res.json({ total: 0, banned: 0, active: 0 });
-  }
+  res.json(getStats());
 });
 
 // POST /api/bot/users/:telegramId/ban (admin)
-router.post("/users/:telegramId/ban", async (req: Request, res: Response): Promise<void> => {
+router.post("/users/:telegramId/ban", (req: Request, res: Response): void => {
   if (!requireAdmin(req, res)) return;
-  const ctx = await getDb();
-  if (!ctx) { res.status(503).json({ error: "Database not available" }); return; }
-  const { db, botUsersTable, eq } = ctx;
   try {
     const { reason } = req.body as { reason?: string };
-    const telegramId = BigInt(req.params.telegramId);
-    await db.update(botUsersTable)
-      .set({ isBanned: true, bannedAt: new Date(), bannedReason: reason ?? "Banned by admin" })
-      .where(eq(botUsersTable.telegramId, telegramId));
-    res.json({ success: true, message: "User banned" });
+    const ok = banUser(
+      req.params.telegramId,
+      reason ?? "Banned by admin",
+    );
+    if (ok) {
+      res.json({ success: true, message: "User banned" });
+    } else {
+      res.status(404).json({ error: "User not found — they must open the app first" });
+    }
   } catch (err) {
     logger.error({ err }, "Failed to ban user");
     res.status(500).json({ error: "Failed to ban user" });
@@ -153,17 +129,15 @@ router.post("/users/:telegramId/ban", async (req: Request, res: Response): Promi
 });
 
 // POST /api/bot/users/:telegramId/unban (admin)
-router.post("/users/:telegramId/unban", async (req: Request, res: Response): Promise<void> => {
+router.post("/users/:telegramId/unban", (req: Request, res: Response): void => {
   if (!requireAdmin(req, res)) return;
-  const ctx = await getDb();
-  if (!ctx) { res.status(503).json({ error: "Database not available" }); return; }
-  const { db, botUsersTable, eq } = ctx;
   try {
-    const telegramId = BigInt(req.params.telegramId);
-    await db.update(botUsersTable)
-      .set({ isBanned: false, bannedAt: null, bannedReason: null })
-      .where(eq(botUsersTable.telegramId, telegramId));
-    res.json({ success: true, message: "User unbanned" });
+    const ok = unbanUser(req.params.telegramId);
+    if (ok) {
+      res.json({ success: true, message: "User unbanned" });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
   } catch (err) {
     logger.error({ err }, "Failed to unban user");
     res.status(500).json({ error: "Failed to unban user" });

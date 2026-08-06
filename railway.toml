@@ -1,0 +1,29 @@
+##############################################################################
+# Railway configuration
+# Docs: https://docs.railway.com/reference/config-as-code
+#
+# One service — Express API + static React frontend served from the same process.
+#
+# Required env vars (set in Railway dashboard → Variables):
+#   DATABASE_URL        PostgreSQL connection string
+#   ADMIN_PASSWORD      Admin panel password
+#   ADMIN_TOKEN         Admin panel token
+#   SESSION_SECRET      Express session secret
+#   TELEGRAM_BOT_TOKEN  (optional) Telegram bot token
+#   ADMIN_CHAT_ID       (optional) Telegram admin chat ID
+#   RENDER_URL          (optional) Your Railway public URL — for Telegram webhook
+#
+# Railway automatically injects PORT; the app reads it at startup.
+##############################################################################
+
+[build]
+builder = "nixpacks"
+buildCommand = "bash build.sh"
+
+[deploy]
+startCommand = "node --enable-source-maps artifacts/api-server/dist/index.mjs"
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
+
+[environments.production.deploy]
+startCommand = "node --enable-source-maps artifacts/api-server/dist/index.mjs"

@@ -1,0 +1,7 @@
+# nixpacks config for Railway
+# build.sh handles install + build, so we skip nixpacks' auto-generated install step.
+[phases.install]
+cmds = []
+
+[phases.build]
+cmds = ["bash build.sh"]

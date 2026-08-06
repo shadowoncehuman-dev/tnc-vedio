@@ -50,6 +50,45 @@ India's premier nursing exam prep platform — a full-stack website reverse-engi
 
 _Populate as you build._
 
+## Deployment
+
+### Build command
+```
+bash build.sh
+```
+This installs pnpm via npx, pushes the DB schema, builds the Vite frontend, then bundles the API server with esbuild.
+
+### Start command
+```
+node --enable-source-maps artifacts/api-server/dist/index.mjs
+```
+The API server serves both the REST API (`/api/*`) and the React frontend static files in production (`NODE_ENV=production`).
+
+### Required environment variables
+| Variable | Required | Description |
+|---|---|---|
+| `PORT` | Yes (auto-injected) | Platform injects this automatically |
+| `NODE_ENV` | Yes | Set to `production` |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `ADMIN_PASSWORD` | Yes | Admin panel password |
+| `ADMIN_TOKEN` | Yes | Admin panel token |
+| `SESSION_SECRET` | Yes | Express session secret |
+| `TELEGRAM_BOT_TOKEN` | Optional | Enables Telegram bot |
+| `ADMIN_CHAT_ID` | Optional | Telegram admin chat ID |
+| `RENDER_URL` | Optional | Your public URL — Telegram webhook auto-setup |
+
+### Render
+Config file: `render.yaml` (Blueprint)
+1. Connect the repo in Render dashboard → New → Blueprint
+2. Set the env vars listed above in the Environment tab
+3. Build command and start command are already in `render.yaml`
+
+### Railway
+Config files: `railway.toml` + `nixpacks.toml`
+1. Connect the repo in Railway → New Project → Deploy from GitHub repo
+2. Set env vars in the Variables tab
+3. Railway reads `railway.toml` and `nixpacks.toml` automatically — no manual command entry needed
+
 ## Gotchas
 
 - Always import `z` from `"zod"` (not `"zod/v4"`) in frontend form files — zodResolver from @hookform/resolvers expects zod v3 type signatures

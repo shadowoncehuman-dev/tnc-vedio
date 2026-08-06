@@ -1,29 +1,47 @@
+##############################################################################
+# Render Infrastructure-as-Code
+# Docs: https://render.com/docs/blueprint-spec
+#
+# One web service — Express API + static React frontend served from the same process.
+#
+# Required env vars (set in Render dashboard → Environment):
+#   DATABASE_URL        PostgreSQL connection string
+#   ADMIN_PASSWORD      Admin panel password
+#   ADMIN_TOKEN         Admin panel token
+#   SESSION_SECRET      Express session secret
+#   TELEGRAM_BOT_TOKEN  (optional) Telegram bot token
+#   ADMIN_CHAT_ID       (optional) Telegram admin chat ID
+##############################################################################
+
 services:
   - type: web
     name: tnc-nursing-app
-    env: node
-    plan: free
+    runtime: node
+    region: oregon          # change to your preferred region
+    plan: free              # change to starter/standard for production
+
     buildCommand: bash build.sh
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
-    healthCheckPath: /api/healthz
+
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
-      - key: BASE_PATH
-        value: /
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: ADMIN_CHAT_ID
-        sync: false
+        value: "10000"        # Render assigns this automatically; keep in sync
+      - key: DATABASE_URL
+        sync: false           # set manually in dashboard
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_TOKEN
         sync: false
       - key: SESSION_SECRET
         sync: false
-      - key: RENDER_URL
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: DATABASE_URL
+      - key: ADMIN_CHAT_ID
+        sync: false
+      - key: RENDER_URL
+        # Injected at runtime: your app's public URL (https://tnc-nursing-app.onrender.com)
+        # Used by the Telegram bot to auto-register its webhook on startup.
+        # Set this to your Render service URL after first deploy.
         sync: false

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy } from "lucide-react";
 import { isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 
@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { path: "/videos", label: "Videos", icon: Video },
   { path: "/quiz", label: "Quiz", icon: Brain, external: TEST_SERIES_URL },
   { path: "/enotes", label: "E-Notes", icon: FileText },
+  { path: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { path: "/courses", label: "Courses", icon: BookOpen },
 ];
 

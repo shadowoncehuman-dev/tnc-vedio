@@ -25,7 +25,7 @@ export async function upsertBotUser(user: {
   last_name?: string;
   username?: string;
 }): Promise<Record<string, unknown>> {
-  return upsertUser(user) as Record<string, unknown>;
+  return (await upsertUser(user)) as unknown as Record<string, unknown>;
 }
 
 export async function checkBanned(
@@ -44,13 +44,14 @@ export function initBot(): Telegraf | null {
   bot = tgBot;
 
   const appUrl = process.env.RENDER_URL ?? "";
+  const pendingBroadcasts = new Set<number>();
 
   // /start — welcome + open mini app button
   tgBot.start(async (ctx) => {
     const user = ctx.from;
-    if (user) upsertUser(user);
+    if (user) await upsertUser(user);
 
-    const banStatus = user ? checkBannedStore(user.id) : { banned: false };
+    const banStatus = user ? await checkBannedStore(user.id) : { banned: false };
     if (banStatus.banned) {
       await ctx.reply("🚫 You are blocked and cannot access this platform.");
       return;
@@ -94,7 +95,7 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-      ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users"
+       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
       : "";
     await ctx.reply(
       `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,
@@ -105,7 +106,7 @@ export function initBot(): Telegraf | null {
   // /stats (admin)
   tgBot.command("stats", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    const { total, banned, active } = getStats();
+    const { total, banned, active } = await getStats();
     await ctx.reply(
       `📊 *Bot Stats*\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
       { parse_mode: "Markdown" },
@@ -115,7 +116,7 @@ export function initBot(): Telegraf | null {
   // /users (admin)
   tgBot.command("users", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    const users = getAllUsers().slice(0, 15);
+    const users = (await getAllUsers()).slice(0, 15);
     if (!users.length) { await ctx.reply("No users yet"); return; }
     const list = users.map((u) =>
       `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
@@ -130,7 +131,7 @@ export function initBot(): Telegraf | null {
     const targetId = parts[0];
     const reason = parts.slice(1).join(" ") || "Banned by admin";
     if (!targetId) { await ctx.reply("Usage: /ban <telegram_id> [reason]"); return; }
-    const ok = banUser(targetId, reason);
+    const ok = await banUser(targetId, reason);
     if (ok) {
       await ctx.reply(`✅ User \`${targetId}\` banned.\nReason: ${reason}`, { parse_mode: "Markdown" });
     } else {
@@ -143,7 +144,7 @@ export function initBot(): Telegraf | null {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
     const targetId = ctx.message.text.split(" ")[1];
     if (!targetId) { await ctx.reply("Usage: /unban <telegram_id>"); return; }
-    const ok = unbanUser(targetId);
+    const ok = await unbanUser(targetId);
     if (ok) {
       await ctx.reply(`✅ User \`${targetId}\` unbanned.`, { parse_mode: "Markdown" });
     } else {
@@ -154,7 +155,7 @@ export function initBot(): Telegraf | null {
   // /banned (admin)
   tgBot.command("banned", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    const banned = getAllUsers().filter((u) => u.isBanned);
+    const banned = (await getAllUsers()).filter((u) => u.isBanned);
     if (!banned.length) { await ctx.reply("No banned users"); return; }
     const text = banned.map((u) =>
       `• ${u.firstName} (@${u.username ?? "—"}) — \`${u.telegramId}\`\n  Reason: ${u.bannedReason ?? "none"}`,
@@ -162,7 +163,58 @@ export function initBot(): Telegraf | null {
     await ctx.reply(`🚫 *Banned Users:*\n\n${text}`, { parse_mode: "Markdown" });
   });
 
-  logger.info("Telegram bot initialized (in-memory user store)");
+  tgBot.command("leaderboard", async (ctx) => {
+    const { getLeaderboard } = await import("./study-store");
+    try {
+      const rows = await getLeaderboard(10);
+      if (!rows.length) { await ctx.reply("No study activity recorded yet."); return; }
+      const text = rows.map((row, index) =>
+        `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min`,
+      ).join("\n");
+      await ctx.reply(`🏆 *Study Leaderboard*\n\n${text}`, { parse_mode: "Markdown" });
+    } catch {
+      await ctx.reply("Leaderboard is unavailable until the Supabase study tables are created.");
+    }
+  });
+
+  // Copy the admin's next message to all active users. This preserves text,
+  // images, videos, stickers, and emoji without storing media in the database.
+  tgBot.command("broadcast", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+    pendingBroadcasts.add(ctx.from!.id);
+    await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
+  });
+
+  tgBot.command("cancel", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) return;
+    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.");
+  });
+
+  tgBot.on("message", async (ctx) => {
+    const adminId = ctx.from?.id;
+    if (!adminId || !isAdmin(adminId) || !pendingBroadcasts.has(adminId)) return;
+    if ("text" in ctx.message && ctx.message.text === "/cancel") {
+      pendingBroadcasts.delete(adminId);
+      await ctx.reply("Broadcast cancelled.");
+      return;
+    }
+    pendingBroadcasts.delete(adminId);
+    const users = await getAllUsers();
+    const recipients = users.filter((user) => !user.isBanned && user.telegramId !== String(adminId));
+    let delivered = 0;
+    let failed = 0;
+    for (const recipient of recipients) {
+      try {
+        await tgBot.telegram.copyMessage(recipient.telegramId, ctx.chat.id, ctx.message.message_id);
+        delivered += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    await ctx.reply(`📣 Broadcast complete.\n✅ Delivered: ${delivered}\n⚠️ Failed: ${failed}`);
+  });
+
+  logger.info("Telegram bot initialized (Supabase user store)");
   return tgBot;
 }
 

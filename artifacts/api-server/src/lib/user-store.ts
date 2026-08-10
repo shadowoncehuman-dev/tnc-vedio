@@ -1,10 +1,7 @@
-/**
- * In-memory bot user store.
- * Users are registered when they open the Telegram Mini App or /start the bot.
- * Data lives in process memory — fast, zero DB dependency, resets on restart.
- */
+import { supabaseRequest } from "./supabase-rest";
 
 export interface BotUser {
+  id: number;
   telegramId: string;
   firstName: string;
   lastName: string | null;
@@ -16,98 +13,122 @@ export interface BotUser {
   lastSeen: string;
 }
 
-const store = new Map<string, BotUser>();
+interface SupabaseBotUser {
+  id: number;
+  telegram_id: number | string;
+  username: string | null;
+  first_name: string;
+  last_name: string | null;
+  is_banned: boolean;
+  banned_at: string | null;
+  banned_reason: string | null;
+  first_seen: string;
+  last_seen: string;
+}
 
-export function upsertUser(user: {
+function mapUser(row: SupabaseBotUser): BotUser {
+  return {
+    id: row.id,
+    telegramId: String(row.telegram_id),
+    firstName: row.first_name ?? "",
+    lastName: row.last_name,
+    username: row.username,
+    isBanned: Boolean(row.is_banned),
+    bannedReason: row.banned_reason,
+    bannedAt: row.banned_at,
+    firstSeen: row.first_seen,
+    lastSeen: row.last_seen,
+  };
+}
+
+export async function upsertUser(user: {
   id: number;
   first_name: string;
   last_name?: string;
   username?: string;
-}): BotUser {
-  const key = String(user.id);
-  const now = new Date().toISOString();
-  const existing = store.get(key);
-  if (existing) {
-    const updated: BotUser = {
-      ...existing,
-      firstName: user.first_name,
-      lastName: user.last_name ?? null,
+}): Promise<BotUser> {
+  const rows = await supabaseRequest<SupabaseBotUser[]>("bot_users?on_conflict=telegram_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      telegram_id: user.id,
+      first_name: user.first_name ?? "",
+      last_name: user.last_name ?? null,
       username: user.username ?? null,
-      lastSeen: now,
-    };
-    store.set(key, updated);
-    return updated;
-  }
-  const newUser: BotUser = {
-    telegramId: key,
-    firstName: user.first_name,
-    lastName: user.last_name ?? null,
-    username: user.username ?? null,
-    isBanned: false,
-    bannedReason: null,
-    bannedAt: null,
-    firstSeen: now,
-    lastSeen: now,
-  };
-  store.set(key, newUser);
-  return newUser;
-}
-
-export function getUser(telegramId: string): BotUser | undefined {
-  return store.get(String(telegramId));
-}
-
-export function banUser(telegramId: string, reason: string): boolean {
-  const user = store.get(String(telegramId));
-  if (!user) return false;
-  store.set(String(telegramId), {
-    ...user,
-    isBanned: true,
-    bannedReason: reason,
-    bannedAt: new Date().toISOString(),
+      last_seen: new Date().toISOString(),
+    }),
   });
-  return true;
+  if (!rows[0]) throw new Error("Supabase did not return the upserted bot user");
+  return mapUser(rows[0]);
 }
 
-export function unbanUser(telegramId: string): boolean {
-  const user = store.get(String(telegramId));
-  if (!user) return false;
-  store.set(String(telegramId), {
-    ...user,
-    isBanned: false,
-    bannedReason: null,
-    bannedAt: null,
-  });
-  return true;
+export async function getUser(telegramId: string): Promise<BotUser | undefined> {
+  const rows = await supabaseRequest<SupabaseBotUser[]>(
+    `bot_users?telegram_id=eq.${encodeURIComponent(telegramId)}&limit=1`,
+  );
+  return rows[0] ? mapUser(rows[0]) : undefined;
 }
 
-export function listUsers(
+export async function banUser(telegramId: string, reason: string): Promise<boolean> {
+  const rows = await supabaseRequest<SupabaseBotUser[]>(
+    `bot_users?telegram_id=eq.${encodeURIComponent(telegramId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        is_banned: true,
+        banned_reason: reason,
+        banned_at: new Date().toISOString(),
+      }),
+    },
+  );
+  return rows.length > 0;
+}
+
+export async function unbanUser(telegramId: string): Promise<boolean> {
+  const rows = await supabaseRequest<SupabaseBotUser[]>(
+    `bot_users?telegram_id=eq.${encodeURIComponent(telegramId)}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ is_banned: false, banned_reason: null, banned_at: null }),
+    },
+  );
+  return rows.length > 0;
+}
+
+export async function listUsers(
   page: number,
   limit: number,
-): { users: BotUser[]; total: number; banned: number } {
-  const all = Array.from(store.values()).sort((a, b) =>
-    b.firstSeen.localeCompare(a.firstSeen),
+): Promise<{ users: BotUser[]; total: number; banned: number }> {
+  const rows = await supabaseRequest<SupabaseBotUser[]>(
+    `bot_users?select=*&order=first_seen.desc&offset=${(page - 1) * limit}&limit=${limit}`,
+    { headers: { Prefer: "count=exact" } },
   );
-  const total = all.length;
-  const banned = all.filter((u) => u.isBanned).length;
-  const start = (page - 1) * limit;
-  return { users: all.slice(start, start + limit), total, banned };
+  const all = await supabaseRequest<Pick<SupabaseBotUser, "is_banned">[]>("bot_users?select=is_banned");
+  return {
+    users: rows.map(mapUser),
+    total: all.length,
+    banned: all.filter((u) => u.is_banned).length,
+  };
 }
 
-export function checkBannedStore(telegramId: string | number): { banned: boolean; reason?: string } {
-  const user = store.get(String(telegramId));
-  if (!user) return { banned: false };
-  return { banned: user.isBanned, reason: user.bannedReason ?? undefined };
+export async function checkBannedStore(
+  telegramId: string | number,
+): Promise<{ banned: boolean; reason?: string }> {
+  const user = await getUser(String(telegramId));
+  return user?.isBanned
+    ? { banned: true, reason: user.bannedReason ?? undefined }
+    : { banned: false };
 }
 
-export function getStats(): { total: number; banned: number; active: number } {
-  const all = Array.from(store.values());
-  const banned = all.filter((u) => u.isBanned).length;
+export async function getStats(): Promise<{ total: number; banned: number; active: number }> {
+  const all = await supabaseRequest<Pick<SupabaseBotUser, "is_banned">[]>("bot_users?select=is_banned");
+  const banned = all.filter((user) => user.is_banned).length;
   return { total: all.length, banned, active: all.length - banned };
 }
 
-export function getAllUsers(): BotUser[] {
-  return Array.from(store.values()).sort((a, b) =>
-    b.firstSeen.localeCompare(a.firstSeen),
-  );
+export async function getAllUsers(): Promise<BotUser[]> {
+  const all = await supabaseRequest<SupabaseBotUser[]>("bot_users?select=*&order=first_seen.desc");
+  return all.map(mapUser);
 }

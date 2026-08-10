@@ -5,9 +5,8 @@ set -e
 # npx caches to ~/.npm/_npx which is always writable
 npx --yes pnpm@10 install --frozen-lockfile
 
-# Push DB schema to create/update tables (safe to run on every deploy)
-# Continues even if DATABASE_URL is not set or push fails
-npx --yes pnpm@10 --filter @workspace/db run push || echo "Warning: DB schema push skipped or failed"
+# Application data is stored in Supabase through server-side REST calls.
+# Run docs/supabase-schema.sql once in the Supabase SQL Editor before deploy.
 
 PORT=10000 BASE_PATH=/ npx --yes pnpm@10 --filter @workspace/tnc-web run build
 npx --yes pnpm@10 --filter @workspace/api-server run build

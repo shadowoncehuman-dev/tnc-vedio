@@ -16,6 +16,7 @@ import AdminPage from "@/pages/admin";
 import WatchPage from "@/pages/watch";
 import PdfViewerPage from "@/pages/pdf-viewer";
 import NotFound from "@/pages/not-found";
+import LeaderboardPage from "@/pages/leaderboard";
 
 const TEST_SERIES_URL = "https://test-sagar-jet.vercel.app/tnc-tests";
 
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/courses/:courseId" component={CourseDetailPage} />
       <Route path="/videos" component={VideosPage} />
       <Route path="/enotes" component={EnotesPage} />
+      <Route path="/leaderboard" component={LeaderboardPage} />
       <Route path="/quiz" component={TestSeriesRedirect} />
       <Route path="/quiz/:examId" component={TestSeriesRedirect} />
       <Route path="/admin" component={AdminPage} />

@@ -23,6 +23,8 @@ tags:
     description: Admin dashboard
   - name: promo
     description: Promotional mode
+  - name: study
+    description: Study-time tracking and leaderboard
 paths:
   /healthz:
     get:
@@ -251,32 +253,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminStats"
 
-  /admin/users:
-    get:
-      operationId: getAdminUsers
-      tags: [admin]
-      summary: Get all users (admin)
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          schema:
-            type: integer
-        - name: search
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Paginated user list
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminUsersResponse"
-
   /promo/status:
     get:
       operationId: getPromoStatus
@@ -308,6 +284,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PromoStatus"
+
+  /bot/study/heartbeat:
+    post:
+      operationId: recordStudyHeartbeat
+      tags: [study]
+      summary: Record study time for a Telegram user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudyHeartbeatInput"
+      responses:
+        "200":
+          description: Study time recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid study heartbeat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bot/study/leaderboard:
+    get:
+      operationId: getStudyLeaderboard
+      tags: [study]
+      summary: Get the study-time leaderboard
+      responses:
+        "200":
+          description: Ranked study-time users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudyLeaderboardRow"
 
   /quizzes:
     get:
@@ -623,25 +639,6 @@ components:
         - name
         - mobile
 
-    AdminUsersResponse:
-      type: object
-      properties:
-        users:
-          type: array
-          items:
-            $ref: "#/components/schemas/AdminUserItem"
-        total:
-          type: integer
-        page:
-          type: integer
-        limit:
-          type: integer
-      required:
-        - users
-        - total
-        - page
-        - limit
-
     PromoStatus:
       type: object
       properties:
@@ -675,6 +672,44 @@ components:
           type: string
       required:
         - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    StudyHeartbeatInput:
+      type: object
+      properties:
+        telegramId:
+          type: integer
+        sessionId:
+          type: string
+        seconds:
+          type: number
+      required:
+        - telegramId
+        - sessionId
+        - seconds
+
+    StudyLeaderboardRow:
+      type: object
+      properties:
+        telegramId:
+          type: string
+        firstName:
+          type: string
+        username:
+          type: ["string", "null"]
+        seconds:
+          type: integer
+      required:
+        - telegramId
+        - firstName
+        - seconds
 
     QuizMeta:
       type: object

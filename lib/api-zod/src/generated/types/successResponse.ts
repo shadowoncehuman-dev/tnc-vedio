@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetAdminUsersParams = {
-page?: number;
-limit?: number;
-search?: string;
-};
+export interface SuccessResponse {
+  success: boolean;
+}

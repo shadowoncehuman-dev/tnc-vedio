@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { getCachedFirebaseVideoUrl, isFirebaseConfigured, isUserAuthConfigured, isServiceAccountConfigured, signInWithEmailPassword, streamFirebaseVideo } from "../lib/firebase-rest";
+import { authenticateAppUser, createAppUser, findAppUser } from "../lib/app-user-store";
+import { getStats as getBotStats } from "../lib/user-store";
 
 const router = Router();
 
@@ -141,8 +143,18 @@ function parseChapter(row: Record<string, unknown>) {
     contentType = "firebase";
   }
 
-  // PDF handling — uploads/ path (CRM-hosted, proxy works)
-  const rawPdfPath = ((deNo.url ?? "") as string).replace(/^\//, "");
+  // PDF handling — CRM-hosted uploads can appear under several legacy keys.
+  const rawNoValue = typeof (json._no) === "string" ? json._no : "";
+  const rawPdfValue = [
+    deNo.url,
+    deNo.uri,
+    deNo._no_url,
+    deNo.pdf_url,
+    rawNoValue,
+    json.pdf_url,
+    json._pdf_url,
+  ].find((value) => typeof value === "string" && value.trim().length > 0) as string | undefined;
+  const rawPdfPath = (rawPdfValue ?? "").replace(/^\//, "");
   const isCrmHostedPdf = rawPdfPath.startsWith("uploads/");
   let pdfUrl: string | null = null;
 
@@ -154,14 +166,19 @@ function parseChapter(row: Record<string, unknown>) {
   }
 
   // Firebase PDF (stored as Firebase URL in _no.url)
-  const rawNoUrl = (deNo.url ?? deNo.uri ?? "") as string;
-  const hasFirebasePdf = !isCrmHostedPdf && (
-    isFirebaseStorageUrl(rawNoUrl) || (rawNoUrl.length > 5 && !isCrmHostedPdf)
-  );
+  const rawNoUrl = String(rawPdfValue ?? "");
+  const hasFirebasePdf = !isCrmHostedPdf && rawNoUrl.length > 5;
 
   if (!videoUrl && !pdfUrl && hasFirebasePdf && rawNoUrl.startsWith("http")) {
     pdfUrl = `/api/media-proxy?url=${encodeURIComponent(rawNoUrl)}`;
     if (contentType === "none") contentType = "pdf";
+  }
+
+  // E-notes must remain PDF-first even when the CRM row also contains a
+  // preview/video field. The PDF route should never send a learner to video.
+  if (pdfUrl) {
+    videoUrl = null;
+    contentType = "pdf";
   }
 
   // Determine final type
@@ -551,16 +568,12 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ error: "Mobile and password required" });
       return;
     }
-    const data = await crmQuery({
-      fn: "common_fn", se: "fe", sch: "t_us",
-      data: { json: "*" },
-      cond: { "json->>'_mo'": mobile, "json->>'_us_pa'": password },
-    });
-    if (!Array.isArray(data) || data.length === 0) {
+    const user = await authenticateAppUser(mobile, password);
+    if (!user) {
       res.status(401).json({ error: "Invalid mobile number or password" });
       return;
     }
-    res.json(parseUserRow((data as Record<string, unknown>[])[0]));
+    res.json(user);
   } catch (err) {
     logger.error({ err }, "Login failed");
     res.status(500).json({ error: "Login failed" });
@@ -575,33 +588,13 @@ router.post("/auth/register", async (req: Request, res: Response): Promise<void>
       res.status(400).json({ error: "Name, mobile, and password are required" });
       return;
     }
-    const existing = await crmQuery({
-      fn: "common_fn", se: "fe", sch: "t_us",
-      data: { json: "*" }, cond: { "json->>'_mo'": mobile },
-    });
-    if (Array.isArray(existing) && existing.length > 0) {
+    const existing = await findAppUser(mobile);
+    if (existing) {
       res.status(409).json({ error: "Mobile number already registered" });
       return;
     }
-    const userId = `${Date.now()}_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    const rowId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await crmQuery({
-      fn: "common_fn", se: "in", sch: "t_us",
-      data: {
-        row_id: rowId, us_gr: 1, status: 0,
-        json: {
-          _us_id: userId, _us_na: name, _mo: mobile, _us_pa: password,
-          _em: email ?? "", _cl: college ?? "", _st: state ?? "",
-          _ci: city ?? "", _ge: gender ?? "", _dob: dob ?? "",
-          _cr_on: new Date().toLocaleString(), _up_on: new Date().toLocaleString(),
-        },
-      },
-      cond: {},
-    });
-    res.status(201).json({
-      userId, name, mobile, email: email ?? null, college: college ?? null,
-      state: state ?? null, token: `usr_${userId}`,
-    });
+    const user = await createAppUser({ name, mobile, password, email, college, state });
+    res.status(201).json(user);
   } catch (err) {
     logger.error({ err }, "Registration failed");
     res.status(500).json({ error: "Registration failed" });
@@ -679,101 +672,25 @@ router.post("/admin/login", (req: Request, res: Response): void => {
 // GET /api/admin/stats
 router.get("/admin/stats", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [coursesData, usersData, purchasesData] = await Promise.all([
+    const [coursesData, purchasesData, botStats] = await Promise.all([
       crmQuery({ fn: "common_fn", se: "fe", sch: "t_co", data: { json: "*" }, cond: {} }),
-      crmQuery({ fn: "common_fn", se: "fe", sch: "t_us", data: { json: "*" }, cond: {} }),
       crmQuery({ fn: "common_fn", se: "fe", sch: "t_cu", data: { json: "*" }, cond: {} }),
+      getBotStats(),
     ]);
     const courses = Array.isArray(coursesData) ? coursesData as Record<string, unknown>[] : [];
-    const users = Array.isArray(usersData) ? usersData as Record<string, unknown>[] : [];
     const purchases = Array.isArray(purchasesData) ? purchasesData as Record<string, unknown>[] : [];
 
-    const sortedUsers = [...users].sort((a, b) => {
-      const aTime = String(a.cr_on ?? "");
-      const bTime = String(b.cr_on ?? "");
-      return bTime.localeCompare(aTime);
-    });
-
-    // Registration trend: last 7 days
-    const now = Date.now();
-    const day = 24 * 60 * 60 * 1000;
-    const trend = Array.from({ length: 7 }, (_, i) => {
-      const dayStart = new Date(now - (6 - i) * day);
-      const dayLabel = dayStart.toLocaleDateString("en-IN", { weekday: "short" });
-      const count = users.filter((u) => {
-        const t = String(u.cr_on ?? "");
-        return t.slice(0, 10) === dayStart.toISOString().slice(0, 10);
-      }).length;
-      return { label: dayLabel, count };
-    });
-
     res.json({
-      totalUsers: users.length,
+      totalUsers: botStats.total,
       totalCourses: courses.length,
       totalSessions: 59806,
       totalPurchases: purchases.length,
-      recentUsers: sortedUsers.slice(0, 20).map(parseAdminUser),
-      registrationTrend: trend,
+      recentUsers: [],
+      bannedUsers: botStats.banned,
     });
   } catch (err) {
     logger.error({ err }, "Failed to fetch admin stats");
     res.status(500).json({ error: "Failed to fetch admin stats" });
-  }
-});
-
-// GET /api/admin/users — server-side paginated, cached fetch
-const usersCache: { data: Record<string, unknown>[]; fetchedAt: number } | null = null as unknown as { data: Record<string, unknown>[]; fetchedAt: number } | null;
-let usersCacheState: { data: Record<string, unknown>[]; fetchedAt: number } | null = null;
-
-router.get("/admin/users", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const search = (req.query.search as string) ?? "";
-    const sort = (req.query.sort as string) ?? "newest";
-
-    // Use cache if < 5 minutes old
-    const now = Date.now();
-    if (!usersCacheState || now - usersCacheState.fetchedAt > 5 * 60 * 1000) {
-      const freshData = await crmQuery({
-        fn: "common_fn", se: "fe", sch: "t_us", data: { json: "*" }, cond: {},
-      });
-      usersCacheState = {
-        data: Array.isArray(freshData) ? (freshData as Record<string, unknown>[]) : [],
-        fetchedAt: now,
-      };
-    }
-
-    let users = usersCacheState.data;
-
-    if (search) {
-      const q = search.toLowerCase();
-      users = users.filter((row) => {
-        const json = (row.json as Record<string, unknown>) ?? {};
-        return (
-          String(json._us_na ?? "").toLowerCase().includes(q) ||
-          String(json._mo ?? "").includes(q) ||
-          String(json._em ?? "").toLowerCase().includes(q)
-        );
-      });
-    }
-
-    // Sort
-    if (sort === "oldest") {
-      users = [...users].sort((a, b) => String(a.cr_on ?? "").localeCompare(String(b.cr_on ?? "")));
-    } else {
-      users = [...users].sort((a, b) => String(b.cr_on ?? "").localeCompare(String(a.cr_on ?? "")));
-    }
-
-    const total = users.length;
-    res.json({
-      users: users.slice((page - 1) * limit, page * limit).map(parseAdminUser),
-      total, page, limit,
-      cachedAt: new Date(usersCacheState.fetchedAt).toISOString(),
-    });
-  } catch (err) {
-    logger.error({ err }, "Failed to fetch admin users");
-    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
@@ -944,7 +861,7 @@ router.get("/quiz/:examId", async (req: Request, res: Response): Promise<void> =
 // GET /api/firebase-stream/:fsId — proxy-stream a Firebase secured video to the browser
 // Works with user email/password auth OR service account (no service account needed if email/pass set)
 router.get("/firebase-stream/:fsId", async (req: Request, res: Response): Promise<void> => {
-  const { fsId } = req.params;
+  const fsId = String(req.params.fsId);
 
   if (!isFirebaseConfigured()) {
     res.status(503).json({
@@ -974,7 +891,7 @@ router.get("/firebase-stream/:fsId", async (req: Request, res: Response): Promis
 
 // GET /api/firebase-video/:fsId — get a direct download URL (service account only)
 router.get("/firebase-video/:fsId", async (req: Request, res: Response): Promise<void> => {
-  const { fsId } = req.params;
+  const fsId = String(req.params.fsId);
   if (!isServiceAccountConfigured()) {
     res.status(503).json({ error: "Requires FIREBASE_SERVICE_ACCOUNT. Use /api/firebase-stream/:fsId for email/password auth." });
     return;

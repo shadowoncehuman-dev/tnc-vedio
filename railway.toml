@@ -5,7 +5,8 @@
 # One service — Express API + static React frontend served from the same process.
 #
 # Required env vars (set in Railway dashboard → Variables):
-#   DATABASE_URL        PostgreSQL connection string
+#   SUPABASE_URL        Supabase project URL
+#   SUPABASE_SERVICE_ROLE_KEY  Supabase server-only service-role key
 #   ADMIN_PASSWORD      Admin panel password
 #   ADMIN_TOKEN         Admin panel token
 #   SESSION_SECRET      Express session secret

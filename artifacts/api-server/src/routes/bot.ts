@@ -8,6 +8,7 @@ import {
   checkBannedStore,
   getStats,
 } from "../lib/user-store";
+import { recordStudyHeartbeat, getLeaderboard } from "../lib/study-store";
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       last_name: lastName,
       username,
     });
-    const banStatus = checkBannedStore(telegramId);
+    const banStatus = await checkBannedStore(telegramId);
     res.json({
       success: true,
       banned: banStatus.banned,
@@ -75,7 +76,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 // GET /api/bot/check-ban/:telegramId — Public ban check
 router.get("/check-ban/:telegramId", async (req: Request, res: Response): Promise<void> => {
   try {
-    const telegramId = parseInt(req.params.telegramId);
+    const telegramId = parseInt(String(req.params.telegramId));
     if (isNaN(telegramId)) {
       res.status(400).json({ error: "Invalid telegramId" });
       return;
@@ -88,13 +89,13 @@ router.get("/check-ban/:telegramId", async (req: Request, res: Response): Promis
   }
 });
 
-// GET /api/bot/users — List bot users (admin) — served from in-memory store
-router.get("/users", (req: Request, res: Response): void => {
+// GET /api/bot/users — List bot users (admin) — served from Supabase
+router.get("/users", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-    const { users, total, banned } = listUsers(page, limit);
+    const { users, total, banned } = await listUsers(page, limit);
     res.json({ users, total, banned, page, limit });
   } catch (err) {
     logger.error({ err }, "Failed to list bot users");
@@ -103,18 +104,18 @@ router.get("/users", (req: Request, res: Response): void => {
 });
 
 // GET /api/bot/stats — Bot stats (admin)
-router.get("/stats", (req: Request, res: Response): void => {
+router.get("/stats", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
-  res.json(getStats());
+  res.json(await getStats());
 });
 
 // POST /api/bot/users/:telegramId/ban (admin)
-router.post("/users/:telegramId/ban", (req: Request, res: Response): void => {
+router.post("/users/:telegramId/ban", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
   try {
     const { reason } = req.body as { reason?: string };
-    const ok = banUser(
-      req.params.telegramId,
+    const ok = await banUser(
+      String(req.params.telegramId),
       reason ?? "Banned by admin",
     );
     if (ok) {
@@ -129,10 +130,10 @@ router.post("/users/:telegramId/ban", (req: Request, res: Response): void => {
 });
 
 // POST /api/bot/users/:telegramId/unban (admin)
-router.post("/users/:telegramId/unban", (req: Request, res: Response): void => {
+router.post("/users/:telegramId/unban", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
   try {
-    const ok = unbanUser(req.params.telegramId);
+    const ok = await unbanUser(String(req.params.telegramId));
     if (ok) {
       res.json({ success: true, message: "User unbanned" });
     } else {
@@ -141,6 +142,34 @@ router.post("/users/:telegramId/unban", (req: Request, res: Response): void => {
   } catch (err) {
     logger.error({ err }, "Failed to unban user");
     res.status(500).json({ error: "Failed to unban user" });
+  }
+});
+
+router.post("/study/heartbeat", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { telegramId, sessionId, seconds } = req.body as {
+      telegramId?: number;
+      sessionId?: string;
+      seconds?: number;
+    };
+    if (!telegramId || !sessionId || !Number.isFinite(seconds)) {
+      res.status(400).json({ error: "telegramId, sessionId, and seconds are required" });
+      return;
+    }
+    await recordStudyHeartbeat({ telegramId, sessionId, seconds: seconds! });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Failed to record study time");
+    res.status(500).json({ error: "Failed to record study time" });
+  }
+});
+
+router.get("/study/leaderboard", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    res.json(await getLeaderboard());
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch study leaderboard");
+    res.status(500).json({ error: "Failed to fetch leaderboard" });
   }
 });
 

@@ -202,32 +202,6 @@ export const GetAdminStatsResponse = zod.object({
 
 
 /**
- * @summary Get all users (admin)
- */
-export const GetAdminUsersQueryParams = zod.object({
-  "page": zod.coerce.number().optional(),
-  "limit": zod.coerce.number().optional(),
-  "search": zod.coerce.string().optional()
-})
-
-export const GetAdminUsersResponse = zod.object({
-  "users": zod.array(zod.object({
-  "id": zod.number(),
-  "rowId": zod.string(),
-  "name": zod.string(),
-  "mobile": zod.string(),
-  "email": zod.string().nullish(),
-  "college": zod.string().nullish(),
-  "state": zod.string().nullish(),
-  "createdAt": zod.string().optional()
-})),
-  "total": zod.number(),
-  "page": zod.number(),
-  "limit": zod.number()
-})
-
-
-/**
  * @summary Get current promo mode status
  */
 export const GetPromoStatusResponse = zod.object({
@@ -251,6 +225,32 @@ export const TogglePromoResponse = zod.object({
   "expiresAt": zod.string().nullish(),
   "message": zod.string()
 })
+
+
+/**
+ * @summary Record study time for a Telegram user
+ */
+export const RecordStudyHeartbeatBody = zod.object({
+  "telegramId": zod.number(),
+  "sessionId": zod.string(),
+  "seconds": zod.number()
+})
+
+export const RecordStudyHeartbeatResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get the study-time leaderboard
+ */
+export const GetStudyLeaderboardResponseItem = zod.object({
+  "telegramId": zod.string(),
+  "firstName": zod.string(),
+  "username": zod.string().nullish(),
+  "seconds": zod.number()
+})
+export const GetStudyLeaderboardResponse = zod.array(GetStudyLeaderboardResponseItem)
 
 
 /**

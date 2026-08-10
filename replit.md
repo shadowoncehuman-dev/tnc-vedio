@@ -30,10 +30,10 @@ India's premier nursing exam prep platform — a full-stack website reverse-engi
 
 ## Architecture decisions
 
-- **No Replit DB** — all data from live CRM at `https://crm.tncnursing.in/`. CRM has no CORS headers so all requests are server-side proxied.
+- **Supabase application store** — app users, Telegram users, bans, and study-time aggregates are stored in Supabase through server-only REST calls. The CRM at `https://crm.tncnursing.in/` remains the source for courses, sessions, PDFs, quizzes, and purchases.
 - **CRM API pattern**: POST `/common/` with `{payload: JSON.stringify({fn, se, sch, data, cond})}`. Tables: `t_co` (courses), `t_se` (sessions), `t_sl` (sliders), `t_us` (users), `t_cu` (purchases).
 - **Promo mode** is in-memory server state (resets on server restart). Default: enabled for 30 days.
-- **Auth** is localStorage-only (no server sessions) — userId + token stored as `tnc_user`.
+- **Auth** is localStorage-only (no server sessions) — userId + token stored as `tnc_user`; credentials are verified against Supabase server-side.
 - **Admin** password and token read from env vars `ADMIN_PASSWORD` and `ADMIN_TOKEN` — set as Replit secrets (dev) and in Render dashboard (prod).
 
 ## Product
@@ -43,8 +43,8 @@ India's premier nursing exam prep platform — a full-stack website reverse-engi
 - Course detail with full session list (videos + PDFs), locked unless purchased/promo
 - Video player (HLS via hls.js + YouTube iframe embed)
 - PDF viewer (iframe embed of CRM-hosted PDFs)
-- Login/Register using real CRM auth (mobile + password)
-- Admin panel (opened via Telegram bot `/admin` command) with stats, user table, promo mode toggle
+- Login/Register using Supabase-backed app users (mobile + password)
+- Admin panel (opened via Telegram bot `/admin` command) with aggregate stats and promo mode toggle; student records remain in the Telegram admin moderation flow
 
 ## User preferences
 
@@ -56,7 +56,7 @@ _Populate as you build._
 ```
 bash build.sh
 ```
-This installs pnpm via npx, pushes the DB schema, builds the Vite frontend, then bundles the API server with esbuild.
+This installs pnpm via npx, builds the Vite frontend, then bundles the API server with esbuild. Apply `docs/supabase-schema.sql` once in Supabase before the first deploy.
 
 ### Start command
 ```
@@ -69,7 +69,8 @@ The API server serves both the REST API (`/api/*`) and the React frontend static
 |---|---|---|
 | `PORT` | Yes (auto-injected) | Platform injects this automatically |
 | `NODE_ENV` | Yes | Set to `production` |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service-role key; server-only, never expose to the browser |
 | `ADMIN_PASSWORD` | Yes | Admin panel password |
 | `ADMIN_TOKEN` | Yes | Admin panel token |
 | `SESSION_SECRET` | Yes | Express session secret |
@@ -80,8 +81,9 @@ The API server serves both the REST API (`/api/*`) and the React frontend static
 ### Render
 Config file: `render.yaml` (Blueprint)
 1. Connect the repo in Render dashboard → New → Blueprint
-2. Set the env vars listed above in the Environment tab
-3. Build command and start command are already in `render.yaml`
+2. Run `docs/supabase-schema.sql` once in the Supabase SQL Editor
+3. Set the env vars listed above in the Environment tab
+4. Build command and start command are already in `render.yaml`
 
 ### Railway
 Config files: `railway.toml` + `nixpacks.toml`

@@ -5,7 +5,8 @@
 # One web service — Express API + static React frontend served from the same process.
 #
 # Required env vars (set in Render dashboard → Environment):
-#   DATABASE_URL        PostgreSQL connection string
+#   SUPABASE_URL        Supabase project URL
+#   SUPABASE_SERVICE_ROLE_KEY  Supabase server-only service-role key
 #   ADMIN_PASSWORD      Admin panel password
 #   ADMIN_TOKEN         Admin panel token
 #   SESSION_SECRET      Express session secret
@@ -28,7 +29,9 @@ services:
         value: production
       - key: PORT
         value: "10000"        # Render assigns this automatically; keep in sync
-      - key: DATABASE_URL
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false           # set manually in dashboard
       - key: ADMIN_PASSWORD
         sync: false

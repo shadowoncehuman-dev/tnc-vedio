@@ -23,11 +23,9 @@ import type {
   AdminAuthResponse,
   AdminLoginInput,
   AdminStats,
-  AdminUsersResponse,
   AuthResponse,
   Course,
   ErrorResponse,
-  GetAdminUsersParams,
   HealthStatus,
   ListQuizzesParams,
   ListSessionsParams,
@@ -40,7 +38,10 @@ import type {
   QuizListResponse,
   RegisterInput,
   Session,
-  Slider
+  Slider,
+  StudyHeartbeatInput,
+  StudyLeaderboardRow,
+  SuccessResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -885,90 +886,6 @@ export function useGetAdminStats<TData = Awaited<ReturnType<typeof getAdminStats
 
 
 
-export const getGetAdminUsersUrl = (params?: GetAdminUsersParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/api/admin/users?${stringifiedParams}` : `/api/admin/users`
-}
-
-/**
- * @summary Get all users (admin)
- */
-export const getAdminUsers = async (params?: GetAdminUsersParams, options?: RequestInit): Promise<AdminUsersResponse> => {
-
-  return customFetch<AdminUsersResponse>(getGetAdminUsersUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetAdminUsersQueryKey = (params?: GetAdminUsersParams,) => {
-    return [
-    `/api/admin/users`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetAdminUsersQueryOptions = <TData = Awaited<ReturnType<typeof getAdminUsers>>, TError = ErrorType<unknown>>(params?: GetAdminUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetAdminUsersQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminUsers>>> = ({ signal }) => getAdminUsers(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminUsers>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetAdminUsersQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminUsers>>>
-export type GetAdminUsersQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Get all users (admin)
- */
-
-export function useGetAdminUsers<TData = Awaited<ReturnType<typeof getAdminUsers>>, TError = ErrorType<unknown>>(
- params?: GetAdminUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetAdminUsersQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
 export const getGetPromoStatusUrl = () => {
 
 
@@ -1116,6 +1033,154 @@ export const useTogglePromo = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getTogglePromoMutationOptions(options));
     }
+
+export const getRecordStudyHeartbeatUrl = () => {
+
+
+
+
+  return `/api/bot/study/heartbeat`
+}
+
+/**
+ * @summary Record study time for a Telegram user
+ */
+export const recordStudyHeartbeat = async (studyHeartbeatInput: StudyHeartbeatInput, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRecordStudyHeartbeatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      studyHeartbeatInput,)
+  }
+);}
+
+
+
+
+export const getRecordStudyHeartbeatMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordStudyHeartbeat>>, TError,{data: BodyType<StudyHeartbeatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordStudyHeartbeat>>, TError,{data: BodyType<StudyHeartbeatInput>}, TContext> => {
+
+const mutationKey = ['recordStudyHeartbeat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordStudyHeartbeat>>, {data: BodyType<StudyHeartbeatInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordStudyHeartbeat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordStudyHeartbeatMutationResult = NonNullable<Awaited<ReturnType<typeof recordStudyHeartbeat>>>
+    export type RecordStudyHeartbeatMutationBody = BodyType<StudyHeartbeatInput>
+    export type RecordStudyHeartbeatMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record study time for a Telegram user
+ */
+export const useRecordStudyHeartbeat = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordStudyHeartbeat>>, TError,{data: BodyType<StudyHeartbeatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordStudyHeartbeat>>,
+        TError,
+        {data: BodyType<StudyHeartbeatInput>},
+        TContext
+      > => {
+      return useMutation(getRecordStudyHeartbeatMutationOptions(options));
+    }
+
+export const getGetStudyLeaderboardUrl = () => {
+
+
+
+
+  return `/api/bot/study/leaderboard`
+}
+
+/**
+ * @summary Get the study-time leaderboard
+ */
+export const getStudyLeaderboard = async ( options?: RequestInit): Promise<StudyLeaderboardRow[]> => {
+
+  return customFetch<StudyLeaderboardRow[]>(getGetStudyLeaderboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudyLeaderboardQueryKey = () => {
+    return [
+    `/api/bot/study/leaderboard`
+    ] as const;
+    }
+
+
+export const getGetStudyLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getStudyLeaderboard>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudyLeaderboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudyLeaderboard>>> = ({ signal }) => getStudyLeaderboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudyLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudyLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getStudyLeaderboard>>>
+export type GetStudyLeaderboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the study-time leaderboard
+ */
+
+export function useGetStudyLeaderboard<TData = Awaited<ReturnType<typeof getStudyLeaderboard>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudyLeaderboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListQuizzesUrl = (params?: ListQuizzesParams,) => {
   const normalizedParams = new URLSearchParams();

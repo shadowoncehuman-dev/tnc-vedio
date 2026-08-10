@@ -5,6 +5,7 @@ import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
+import { getTelegramUser } from "@/lib/telegram";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -314,6 +315,23 @@ export default function WatchPage() {
   const purchasedIds = new Set((Array.isArray(purchases) ? purchases : []).map((p) => p.courseId));
   const isCourseUnlocked = promo?.enabled || (!!session?.courseId && purchasedIds.has(session.courseId));
   const isUnlocked = !session?.isPaid || isCourseUnlocked;
+
+  useEffect(() => {
+    const telegramUser = getTelegramUser();
+    if (!telegramUser || !isUnlocked || !sessionId) return;
+    let lastSent = Date.now();
+    const timer = window.setInterval(() => {
+      const elapsed = Math.round((Date.now() - lastSent) / 1000);
+      lastSent = Date.now();
+      if (document.visibilityState !== "visible") return;
+      fetch(`${BASE}/api/bot/study/heartbeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramId: telegramUser.id, sessionId, seconds: elapsed }),
+      }).catch(() => {});
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [isUnlocked, sessionId]);
 
   if (isLoading) {
     return (

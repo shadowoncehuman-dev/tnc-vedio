@@ -145,13 +145,6 @@ export interface AdminStats {
   recentUsers: AdminUserItem[];
 }
 
-export interface AdminUsersResponse {
-  users: AdminUserItem[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 export interface PromoStatus {
   enabled: boolean;
   /** @nullable */
@@ -167,6 +160,24 @@ export interface PromoToggleInput {
 
 export interface ErrorResponse {
   error: string;
+}
+
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface StudyHeartbeatInput {
+  telegramId: number;
+  sessionId: string;
+  seconds: number;
+}
+
+export interface StudyLeaderboardRow {
+  telegramId: string;
+  firstName: string;
+  /** @nullable */
+  username?: string | null;
+  seconds: number;
 }
 
 export interface QuizMeta {
@@ -230,12 +241,6 @@ export type ListSessionsParams = {
 courseId?: string;
 type?: string;
 limit?: number;
-};
-
-export type GetAdminUsersParams = {
-page?: number;
-limit?: number;
-search?: string;
 };
 
 export type ListQuizzesParams = {

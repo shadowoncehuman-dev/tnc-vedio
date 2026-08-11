@@ -1,4 +1,9 @@
-import { supabaseRequest } from "./supabase-rest";
+import { getSupabaseAdmin, isSupabaseConfigured } from "./supabase-server";
+
+function ensureClient() {
+  if (!isSupabaseConfigured()) throw new Error("Supabase not configured on server");
+  return getSupabaseAdmin();
+}
 
 export interface StudySessionSummary {
   telegramId: string;
@@ -15,14 +20,13 @@ export async function recordStudyHeartbeat(input: {
 }): Promise<void> {
   const seconds = Math.min(Math.max(Math.round(input.seconds), 0), 300);
   if (!seconds) return;
-  await supabaseRequest("rpc/record_study_time", {
-    method: "POST",
-    body: JSON.stringify({
-      p_telegram_id: input.telegramId,
-      p_session_id: input.sessionId,
-      p_seconds: seconds,
-    }),
+  const supabase = ensureClient();
+  const { error } = await supabase.rpc("record_study_time", {
+    p_telegram_id: input.telegramId,
+    p_session_id: input.sessionId,
+    p_seconds: seconds,
   });
+  if (error) throw error;
 }
 
 export async function getLeaderboard(limit = 20): Promise<StudySessionSummary[]> {

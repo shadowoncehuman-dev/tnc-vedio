@@ -244,6 +244,16 @@ export function initBot(): Telegraf | null {
       }
     }
     await ctx.reply(`📣 Broadcast complete.\n✅ Delivered: ${delivered}\n⚠️ Failed: ${failed}`);
+    // Log broadcast in Supabase (best-effort)
+    try {
+      const { logBroadcast } = await import("./broadcast");
+      const contentType = "mixed";
+      const messageText = typeof ctx.message.text === "string" ? ctx.message.text : null;
+      const mediaUrl = null;
+      await logBroadcast({ adminTelegramId: adminId, contentType, messageText, mediaUrl, totalRecipients: recipients.length, successfulSends: delivered, failedSends: failed });
+    } catch (err) {
+      logger.warn({ err }, "Failed to record broadcast log");
+    }
   });
 
   logger.info("Telegram bot initialized (Supabase user store)");

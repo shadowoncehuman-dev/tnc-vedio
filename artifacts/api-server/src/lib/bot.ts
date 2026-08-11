@@ -56,14 +56,16 @@ export function initBot(): Telegraf | null {
 
   // /start — welcome + open mini app button
   tgBot.start(async (ctx) => {
-    const user = ctx.from;
-    if (user) await upsertUser(user);
+    try {
+      const user = ctx.from;
+      logger.info({ user }, "/start received");
+      if (user) await upsertUser(user);
 
-    const banStatus = user ? await checkBannedStore(user.id) : { banned: false };
-    if (banStatus.banned) {
-      await ctx.reply("🚫 You are blocked and cannot access this platform.");
-      return;
-    }
+      const banStatus = user ? await checkBannedStore(user.id) : { banned: false };
+      if (banStatus.banned) {
+        await ctx.reply("🚫 You are blocked and cannot access this platform.");
+        return;
+      }
 
     const replyOpts: Record<string, unknown> = { parse_mode: "Markdown" };
 
@@ -79,24 +81,38 @@ export function initBot(): Telegraf | null {
       replyOpts.reply_markup = { inline_keyboard: keyboard };
     }
 
-    await ctx.reply(
-      `🏥 *Welcome to TNC Nursing Classes!*\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n${appUrl ? "Tap the button below to open the app 👇" : "Visit the app to start studying."}`,
-      replyOpts as Parameters<typeof ctx.reply>[1],
-    );
+      await ctx.reply(
+        `🏥 *Welcome to TNC Nursing Classes!*\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n${appUrl ? "Tap the button below to open the app 👇" : "Visit the app to start studying."}`,
+        replyOpts as Parameters<typeof ctx.reply>[1],
+      );
+    } catch (err) {
+      logger.error({ err }, "Error in /start handler");
+      try {
+        await ctx.reply("⚠️ An unexpected error occurred. Please try again later.");
+      } catch {
+        // ignore
+      }
+    }
   });
 
   // /admin — open admin panel (admin only)
   tgBot.command("admin", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    if (!appUrl) { await ctx.reply("❌ RENDER_URL not set"); return; }
-    await ctx.reply("🛡️ *Admin Panel*", {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "🛡️ Open Admin Panel", web_app: { url: `${appUrl}/admin` } },
-        ]],
-      },
-    } as Parameters<typeof ctx.reply>[1]);
+    try {
+      if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+      if (!appUrl) { await ctx.reply("❌ RENDER_URL not set"); return; }
+      logger.info({ admin: ctx.from?.id }, "/admin opened");
+      await ctx.reply("🛡️ *Admin Panel*", {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🛡️ Open Admin Panel", web_app: { url: `${appUrl}/admin` } },
+          ]],
+        },
+      } as Parameters<typeof ctx.reply>[1]);
+    } catch (err) {
+      logger.error({ err }, "Error in /admin handler");
+      try { await ctx.reply("⚠️ Admin command failed"); } catch {}
+    }
   });
 
   // /help
@@ -205,9 +221,14 @@ export function initBot(): Telegraf | null {
   // Copy the admin's next message to all active users. This preserves text,
   // images, videos, stickers, and emoji without storing media in the database.
   tgBot.command("broadcast", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    pendingBroadcasts.add(ctx.from!.id);
-    await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
+    try {
+      if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+      pendingBroadcasts.add(ctx.from!.id);
+      await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
+    } catch (err) {
+      logger.error({ err }, "Error initiating broadcast");
+      try { await ctx.reply("⚠️ Could not start broadcast"); } catch {}
+    }
   });
 
   tgBot.command("cancel", async (ctx) => {
@@ -218,6 +239,7 @@ export function initBot(): Telegraf | null {
   tgBot.on("message", async (ctx) => {
     const adminId = ctx.from?.id;
     if (!adminId || !isAdmin(adminId) || !pendingBroadcasts.has(adminId)) return;
+    logger.info({ adminId, message: ctx.message }, "received broadcast content from admin");
     if ("text" in ctx.message && ctx.message.text === "/cancel") {
       pendingBroadcasts.delete(adminId);
       await ctx.reply("Broadcast cancelled.");

@@ -8,15 +8,23 @@ import {
   getAllUsers,
   getStats,
 } from "./user-store";
+import { getRandomSfwImage } from "./waifu";
+import { isAdmin } from "./admin";
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN;
 
 export let bot: Telegraf | null = null;
 
-function isAdmin(chatId: number | undefined): boolean {
-  if (!ADMIN_CHAT_ID || !chatId) return false;
-  return String(chatId) === String(ADMIN_CHAT_ID);
+async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: string; username?: string }) {
+  const imageUrl = await getRandomSfwImage();
+  const text = `🏥 *Welcome to TNC Nursing Classes!*
+
+Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.`;
+  if (imageUrl) {
+    await ctx.replyWithPhoto?.(imageUrl, { caption: text, parse_mode: "Markdown" });
+    return;
+  }
+  await ctx.reply(text, { parse_mode: "Markdown" });
 }
 
 export async function upsertBotUser(user: {
@@ -113,6 +121,23 @@ export function initBot(): Telegraf | null {
     );
   });
 
+  tgBot.command("user", async (ctx) => {
+    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+    const targetId = ctx.message.text.split(" ")[1];
+    if (!targetId) { await ctx.reply("Usage: /user <telegram_id>"); return; }
+    const user = await (await import("./user-store")).getUser(targetId);
+    if (!user) { await ctx.reply("User not found."); return; }
+    const details = [
+      `Telegram ID: ${user.telegramId}`,
+      `Name: ${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`,
+      `Username: ${user.username ?? "—"}`,
+      `Banned: ${user.isBanned ? "Yes" : "No"}`,
+      `Reason: ${user.bannedReason ?? "—"}`,
+      `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`,
+    ].join("\n");
+    await ctx.reply(`🧾 *User Details*\n\n${details}`, { parse_mode: "Markdown" });
+  });
+
   // /users (admin)
   tgBot.command("users", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
@@ -169,7 +194,7 @@ export function initBot(): Telegraf | null {
       const rows = await getLeaderboard(10);
       if (!rows.length) { await ctx.reply("No study activity recorded yet."); return; }
       const text = rows.map((row, index) =>
-        `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min`,
+        `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`,
       ).join("\n");
       await ctx.reply(`🏆 *Study Leaderboard*\n\n${text}`, { parse_mode: "Markdown" });
     } catch {
@@ -203,12 +228,19 @@ export function initBot(): Telegraf | null {
     const recipients = users.filter((user) => !user.isBanned && user.telegramId !== String(adminId));
     let delivered = 0;
     let failed = 0;
-    for (const recipient of recipients) {
-      try {
-        await tgBot.telegram.copyMessage(recipient.telegramId, ctx.chat.id, ctx.message.message_id);
-        delivered += 1;
-      } catch {
-        failed += 1;
+    const batchSize = 10;
+    for (let index = 0; index < recipients.length; index += batchSize) {
+      const batch = recipients.slice(index, index + batchSize);
+      for (const recipient of batch) {
+        try {
+          await tgBot.telegram.copyMessage(recipient.telegramId, ctx.chat.id, ctx.message.message_id);
+          delivered += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      if (index + batchSize < recipients.length) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
       }
     }
     await ctx.reply(`📣 Broadcast complete.\n✅ Delivered: ${delivered}\n⚠️ Failed: ${failed}`);

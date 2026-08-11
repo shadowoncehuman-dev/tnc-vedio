@@ -199,6 +199,20 @@ body {
   color: hsl(var(--foreground));
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body:has(.fullscreen-active) {
+  overflow: hidden;
+}
+
+button, a, input, select, textarea {
+  touch-action: manipulation;
 }
 
 .tnc-brand-gradient {

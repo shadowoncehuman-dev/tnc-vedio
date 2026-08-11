@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2 } from "lucide-react";
 import { isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 
@@ -28,7 +28,29 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const admin = isAdmin();
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      const target = document.documentElement;
+      if (target.requestFullscreen) {
+        await target.requestFullscreen();
+      }
+    } catch {
+      // Ignore unsupported or blocked fullscreen requests.
+    }
+  }
 
   function handleAdminLogout() {
     clearAdminToken();
@@ -135,6 +157,14 @@ export default function Layout({ children }: LayoutProps) {
             <span className="text-white font-bold text-sm">TNC Nursing</span>
           </Link>
           <div className="flex items-center gap-2">
+            <button
+              onClick={toggleFullscreen}
+              className="text-white p-1.5 rounded-lg bg-white/15"
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              data-testid="btn-fullscreen"
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
             {admin && (
               <Link href="/admin" className="text-yellow-300 text-xs font-semibold px-2 py-1 rounded-lg bg-yellow-400/15">
                 Admin

@@ -9,6 +9,7 @@ interface LeaderboardRow {
   firstName: string;
   username: string | null;
   seconds: number;
+  sessions: number;
 }
 
 function formatStudyTime(seconds: number): string {
@@ -66,9 +67,12 @@ export default function LeaderboardPage() {
                   <p className="font-semibold text-gray-900 truncate">{row.firstName || "Student"}</p>
                   {row.username && <p className="text-xs text-gray-400">@{row.username}</p>}
                 </div>
-                <div className="flex items-center gap-1.5 text-sm font-bold text-blue-700">
-                  <Clock3 size={15} />
-                  {formatStudyTime(row.seconds)}
+                <div className="text-right">
+                  <div className="flex items-center justify-end gap-1.5 text-sm font-bold text-blue-700">
+                    <Clock3 size={15} />
+                    {formatStudyTime(row.seconds)}
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">{row.sessions} sessions</div>
                 </div>
               </div>
             ))}

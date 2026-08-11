@@ -1,5 +1,13 @@
 import { supabaseRequest } from "./supabase-rest";
 
+export interface StudySessionSummary {
+  telegramId: string;
+  firstName: string;
+  username: string | null;
+  seconds: number;
+  sessions: number;
+}
+
 export async function recordStudyHeartbeat(input: {
   telegramId: number;
   sessionId: string;
@@ -17,24 +25,21 @@ export async function recordStudyHeartbeat(input: {
   });
 }
 
-export async function getLeaderboard(limit = 20): Promise<Array<{
-  telegramId: string;
-  firstName: string;
-  username: string | null;
-  seconds: number;
-}>> {
+export async function getLeaderboard(limit = 20): Promise<StudySessionSummary[]> {
   const rows = await supabaseRequest<Array<{
     telegram_id: number | string;
     first_name: string;
     username: string | null;
     seconds: number;
+    sessions: number;
   }>>(
-    `study_leaderboard?select=telegram_id,first_name,username,seconds&limit=${Math.min(limit, 100)}`,
+    `study_leaderboard?select=telegram_id,first_name,username,seconds,sessions&limit=${Math.min(limit, 100)}`,
   );
   return rows.map((row) => ({
     telegramId: String(row.telegram_id),
     firstName: row.first_name,
     username: row.username,
     seconds: Number(row.seconds),
+    sessions: Number(row.sessions),
   }));
 }

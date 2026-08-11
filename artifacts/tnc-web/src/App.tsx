@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BannedScreen from "@/components/BannedScreen";
 import PageLoader from "@/components/PageLoader";
-import { getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp, openExternalLink } from "@/lib/telegram";
+import { getTelegramInitData, getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp, openExternalLink } from "@/lib/telegram";
 
 import HomePage from "@/pages/home";
 import CoursesPage from "@/pages/courses";
@@ -70,9 +70,9 @@ function App() {
     }
 
     const tgUser = getTelegramUser();
+    const initData = getTelegramInitData();
 
     if (tgUser) {
-      // Register/check ban status for Telegram users
       fetch(`${BASE}/api/bot/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,6 +81,7 @@ function App() {
           firstName: tgUser.first_name,
           lastName: tgUser.last_name,
           username: tgUser.username,
+          initData,
         }),
       })
         .then((r) => r.json())

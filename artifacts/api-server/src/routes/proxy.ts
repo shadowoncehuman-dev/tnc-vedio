@@ -59,6 +59,18 @@ function isYouTubeUrl(url: unknown): url is string {
   return url.includes("youtube.com") || url.includes("youtu.be");
 }
 
+function isPdfCandidate(url: unknown): boolean {
+  if (typeof url !== "string") return false;
+  const value = url.trim();
+  if (!value) return false;
+  if (isYouTubeUrl(value)) return false;
+  if (/\.(mp4|m3u8|webm|mov|avi|mkv)(\?|$)/i.test(value)) return false;
+  if (/youtube|vimeo|bunny|video|stream|cloudfront|cdn/i.test(value)) return false;
+  if (/\.pdf(\?|$)/i.test(value)) return true;
+  if (value.includes("/pdf/") || value.includes("application/pdf")) return true;
+  return false;
+}
+
 function isDirectVideoUrl(url: unknown): url is string {
   if (typeof url !== "string") return false;
   if (!url.startsWith("http")) return false;
@@ -143,34 +155,31 @@ function parseChapter(row: Record<string, unknown>) {
     contentType = "firebase";
   }
 
-  // PDF handling — CRM-hosted uploads can appear under several legacy keys.
-  const rawNoValue = typeof (json._no) === "string" ? json._no : "";
-  const rawPdfValue = [
+  // PDF handling — only trust real PDF-looking resources.
+  const pdfCandidates = [
     deNo.url,
     deNo.uri,
     deNo._no_url,
     deNo.pdf_url,
-    rawNoValue,
     json.pdf_url,
     json._pdf_url,
-  ].find((value) => typeof value === "string" && value.trim().length > 0) as string | undefined;
-  const rawPdfPath = (rawPdfValue ?? "").replace(/^\//, "");
+    typeof json._no === "string" ? json._no : null,
+  ].filter((value): value is string => typeof value === "string" && isPdfCandidate(value));
+
+  const pdfCandidate = pdfCandidates[0] ?? null;
+  const rawPdfPath = (pdfCandidate ?? "").replace(/^\//, "");
   const isCrmHostedPdf = rawPdfPath.startsWith("uploads/");
   let pdfUrl: string | null = null;
 
-  if (isCrmHostedPdf) {
+  if (pdfCandidate && isCrmHostedPdf) {
     pdfUrl = `/api/pdf?path=${encodeURIComponent(rawPdfPath)}`;
     if (!videoUrl && contentType !== "firebase") {
       contentType = "pdf";
     }
   }
 
-  // Firebase PDF (stored as Firebase URL in _no.url)
-  const rawNoUrl = String(rawPdfValue ?? "");
-  const hasFirebasePdf = !isCrmHostedPdf && rawNoUrl.length > 5;
-
-  if (!videoUrl && !pdfUrl && hasFirebasePdf && rawNoUrl.startsWith("http")) {
-    pdfUrl = `/api/media-proxy?url=${encodeURIComponent(rawNoUrl)}`;
+  if (!videoUrl && !pdfUrl && pdfCandidate && pdfCandidate.startsWith("http")) {
+    pdfUrl = `/api/pdf?url=${encodeURIComponent(pdfCandidate)}`;
     if (contentType === "none") contentType = "pdf";
   }
 
@@ -311,18 +320,25 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
 // GET /api/pdf?path=... — proxy PDFs from CRM (uploads/ paths)
 router.get("/pdf", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { path: pdfPath } = req.query;
-    if (!pdfPath || typeof pdfPath !== "string") {
-      res.status(400).json({ error: "Missing path" });
+    const { path: pdfPath, url: pdfUrl } = req.query;
+    if (!pdfPath && !pdfUrl) {
+      res.status(400).json({ error: "Missing path or url" });
       return;
     }
-    const url = `${CRM_BASE}/${pdfPath.replace(/^\/+/, "")}`;
-    const upstream = await fetch(url);
+    const targetUrl = typeof pdfUrl === "string" && pdfUrl.startsWith("http")
+      ? pdfUrl
+      : `${CRM_BASE}/${String(pdfPath).replace(/^\/+/, "")}`;
+    const upstream = await fetch(targetUrl);
     if (!upstream.ok) {
       res.status(upstream.status).json({ error: "PDF not found" });
       return;
     }
     const ct = upstream.headers.get("content-type") ?? "application/pdf";
+    const isPdf = ct.toLowerCase().includes("application/pdf") || String(targetUrl).toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      res.status(415).json({ error: "Requested resource is not a PDF" });
+      return;
+    }
     res.setHeader("Content-Type", ct);
     res.setHeader("Content-Disposition", "inline");
     res.setHeader("Cache-Control", "public, max-age=86400");

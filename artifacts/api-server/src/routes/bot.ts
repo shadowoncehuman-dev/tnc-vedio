@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { bot, upsertBotUser, checkBanned } from "../lib/bot";
+import { verifyTelegramInitData } from "../lib/telegram-auth";
 import {
   listUsers,
   banUser,
@@ -43,29 +44,48 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
 // POST /api/bot/register — Mini app registers user on open
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { telegramId, firstName, lastName, username } = req.body as {
-      telegramId: number;
-      firstName: string;
+    const { telegramId, firstName, lastName, username, initData } = req.body as {
+      telegramId?: number;
+      firstName?: string;
       lastName?: string;
       username?: string;
+      initData?: string;
     };
-    if (!telegramId) {
-      res.status(400).json({ error: "telegramId required" });
+
+    const verified = verifyTelegramInitData(initData, process.env.BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN);
+    const resolvedTelegramId = verified?.user.id ?? telegramId;
+    const resolvedFirstName = verified?.user.first_name ?? firstName ?? "";
+    const resolvedLastName = verified?.user.last_name ?? lastName ?? null;
+    const resolvedUsername = verified?.user.username ?? username ?? null;
+
+    if (!resolvedTelegramId) {
+      res.status(400).json({ error: "telegramId or valid Telegram initData required" });
       return;
     }
+
+    if (initData && !verified) {
+      res.status(401).json({ error: "Invalid Telegram authentication data" });
+      return;
+    }
+
     const user = await upsertBotUser({
-      id: telegramId,
-      first_name: firstName ?? "",
-      last_name: lastName,
-      username,
+      id: Number(resolvedTelegramId),
+      first_name: resolvedFirstName,
+      last_name: resolvedLastName ?? undefined,
+      username: resolvedUsername ?? undefined,
     });
-    const banStatus = await checkBannedStore(telegramId);
+    const banStatus = await checkBannedStore(Number(resolvedTelegramId));
     res.json({
       success: true,
       banned: banStatus.banned,
       reason: banStatus.reason,
-      telegramId: String(telegramId),
-      user,
+      telegramId: String(resolvedTelegramId),
+      user: {
+        telegramId: String(resolvedTelegramId),
+        firstName: user.first_name ?? resolvedFirstName,
+        lastName: resolvedLastName ?? null,
+        username: resolvedUsername ?? null,
+      },
     });
   } catch (err) {
     logger.error({ err }, "Failed to register bot user");

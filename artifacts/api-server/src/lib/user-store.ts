@@ -11,6 +11,7 @@ export interface BotUser {
   bannedAt: string | null;
   firstSeen: string;
   lastSeen: string;
+  totalStudySeconds: number;
 }
 
 interface SupabaseBotUser {
@@ -24,6 +25,7 @@ interface SupabaseBotUser {
   banned_reason: string | null;
   first_seen: string;
   last_seen: string;
+  total_study_seconds?: number | null;
 }
 
 function mapUser(row: SupabaseBotUser): BotUser {
@@ -38,6 +40,7 @@ function mapUser(row: SupabaseBotUser): BotUser {
     bannedAt: row.banned_at,
     firstSeen: row.first_seen,
     lastSeen: row.last_seen,
+    totalStudySeconds: Number(row.total_study_seconds ?? 0),
   };
 }
 
@@ -55,6 +58,7 @@ export async function upsertUser(user: {
       first_name: user.first_name ?? "",
       last_name: user.last_name ?? null,
       username: user.username ?? null,
+      first_seen: new Date().toISOString(),
       last_seen: new Date().toISOString(),
     }),
   });
@@ -102,8 +106,7 @@ export async function listUsers(
   limit: number,
 ): Promise<{ users: BotUser[]; total: number; banned: number }> {
   const rows = await supabaseRequest<SupabaseBotUser[]>(
-    `bot_users?select=*&order=first_seen.desc&offset=${(page - 1) * limit}&limit=${limit}`,
-    { headers: { Prefer: "count=exact" } },
+    `bot_users?select=*&order=last_seen.desc&offset=${(page - 1) * limit}&limit=${limit}`,
   );
   const all = await supabaseRequest<Pick<SupabaseBotUser, "is_banned">[]>("bot_users?select=is_banned");
   return {
@@ -129,6 +132,6 @@ export async function getStats(): Promise<{ total: number; banned: number; activ
 }
 
 export async function getAllUsers(): Promise<BotUser[]> {
-  const all = await supabaseRequest<SupabaseBotUser[]>("bot_users?select=*&order=first_seen.desc");
+  const all = await supabaseRequest<SupabaseBotUser[]>("bot_users?select=*&order=last_seen.desc");
   return all.map(mapUser);
 }

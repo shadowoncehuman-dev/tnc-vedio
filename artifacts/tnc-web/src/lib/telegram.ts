@@ -59,6 +59,14 @@ export function getTelegramUser(): TelegramUser | null {
   }
 }
 
+export function getTelegramInitData(): string | null {
+  try {
+    return window.Telegram?.WebApp?.initData ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function isTelegramWebApp(): boolean {
   try {
     return !!(window.Telegram?.WebApp?.initData);

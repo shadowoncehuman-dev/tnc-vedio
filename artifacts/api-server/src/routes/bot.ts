@@ -41,6 +41,21 @@ router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// GET /api/bot/webhook — simple acknowledge so browsers show a helpful message
+router.get("/webhook", async (_req: Request, res: Response): Promise<void> => {
+  res.json({ ok: true, message: "Telegram webhook endpoint (POST only). Use POST to send updates." });
+});
+
+// GET /api/bot/status — lightweight bot status for health checks
+router.get("/status", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const botReady = Boolean(bot);
+    res.json({ ok: true, botInitialized: botReady });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: "Status check failed" });
+  }
+});
+
 // POST /api/bot/register — Mini app registers user on open
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {

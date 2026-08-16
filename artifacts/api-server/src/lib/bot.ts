@@ -15,16 +15,52 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN;
 
 export let bot: Telegraf | null = null;
 
-async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: string; username?: string }) {
-  const imageUrl = await getRandomSfwImage();
-  const text = `🏥 *Welcome to TNC Nursing Classes!*
+// Helper to escape MarkdownV2 special characters
+function escapeMarkdownV2(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+}
 
-Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.`;
-  if (imageUrl) {
-    await ctx.replyWithPhoto?.(imageUrl, { caption: text, parse_mode: "Markdown" });
-    return;
+async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: string; username?: string }) {
+  const appUrl = process.env.RENDER_URL ?? "";
+  const imageUrl = await getRandomSfwImage();
+  
+  const welcomeText = `🏥 **Welcome to TNC Nursing Classes!**
+
+Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
+
+${appUrl ? `Tap the button below to open the app 👇\n\n🌐 ${escapeMarkdownV2(appUrl)}` : "Visit the app to start studying."}`;
+
+  const replyOpts: Record<string, unknown> = { parse_mode: "MarkdownV2" };
+
+  if (appUrl) {
+    const keyboard: { text: string; web_app: { url: string } }[][] = [[
+      { text: "📚 Open TNC Nursing App", web_app: { url: appUrl } },
+    ]];
+    if (isAdmin(user?.id)) {
+      keyboard.push([
+        { text: "🛡️ Admin Panel", web_app: { url: `${appUrl}/admin` } },
+      ]);
+    }
+    replyOpts.reply_markup = { inline_keyboard: keyboard };
   }
-  await ctx.reply(text, { parse_mode: "Markdown" });
+
+  try {
+    if (imageUrl) {
+      await ctx.replyWithPhoto?.(imageUrl, { caption: welcomeText, parse_mode: "MarkdownV2", ...replyOpts });
+      return;
+    }
+    await ctx.reply(welcomeText, replyOpts);
+  } catch (err) {
+    logger.error({ err, user: user.id }, "Failed to send welcome message with image, trying without");
+    // Fallback without image
+    try {
+      await ctx.reply(welcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
+    } catch (fallbackErr) {
+      logger.error({ err: fallbackErr, user: user.id }, "Failed to send welcome message even without image");
+      // Last resort - plain text
+      await ctx.reply("🏥 Welcome to TNC Nursing Classes!\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n" + (appUrl ? `Tap the button below to open the app 👇\n\n${appUrl}` : "Visit the app to start studying."), replyOpts);
+    }
+  }
 }
 
 export async function upsertBotUser(user: {
@@ -67,24 +103,10 @@ export function initBot(): Telegraf | null {
         return;
       }
 
-    const replyOpts: Record<string, unknown> = { parse_mode: "Markdown" };
-
-    if (appUrl) {
-      const keyboard: { text: string; web_app: { url: string } }[][] = [[
-        { text: "📚 Open TNC Nursing App", web_app: { url: appUrl } },
-      ]];
-      if (isAdmin(user?.id)) {
-        keyboard.push([
-          { text: "🛡️ Admin Panel", web_app: { url: `${appUrl}/admin` } },
-        ]);
+      // Use the new sendWelcomeMessage function
+      if (user) {
+        await sendWelcomeMessage(ctx, user);
       }
-      replyOpts.reply_markup = { inline_keyboard: keyboard };
-    }
-
-      await ctx.reply(
-        `🏥 *Welcome to TNC Nursing Classes!*\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n${appUrl ? "Tap the button below to open the app 👇" : "Visit the app to start studying."}`,
-        replyOpts as Parameters<typeof ctx.reply>[1],
-      );
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
       try {
@@ -101,8 +123,8 @@ export function initBot(): Telegraf | null {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       if (!appUrl) { await ctx.reply("❌ RENDER_URL not set"); return; }
       logger.info({ admin: ctx.from?.id }, "/admin opened");
-      await ctx.reply("🛡️ *Admin Panel*", {
-        parse_mode: "Markdown",
+      await ctx.reply("🛡️ **Admin Panel**", {
+        parse_mode: "MarkdownV2",
         reply_markup: {
           inline_keyboard: [[
             { text: "🛡️ Open Admin Panel", web_app: { url: `${appUrl}/admin` } },
@@ -119,11 +141,11 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
+       ? "\n\n**Admin Commands:**\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
       : "";
     await ctx.reply(
-      `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,
-      { parse_mode: "Markdown" },
+      `**TNC Nursing Classes Bot**\n\n/start — Open the app${adminCmds}`,
+      { parse_mode: "MarkdownV2" },
     );
   });
 
@@ -132,8 +154,8 @@ export function initBot(): Telegraf | null {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
     const { total, banned, active } = await getStats();
     await ctx.reply(
-      `📊 *Bot Stats*\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
-      { parse_mode: "Markdown" },
+      `📊 **Bot Stats**\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
+      { parse_mode: "MarkdownV2" },
     );
   });
 
@@ -151,7 +173,7 @@ export function initBot(): Telegraf | null {
       `Reason: ${user.bannedReason ?? "—"}`,
       `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`,
     ].join("\n");
-    await ctx.reply(`🧾 *User Details*\n\n${details}`, { parse_mode: "Markdown" });
+    await ctx.reply(`🧾 **User Details**\n\n${details}`, { parse_mode: "MarkdownV2" });
   });
 
   // /users (admin)
@@ -162,7 +184,7 @@ export function initBot(): Telegraf | null {
     const list = users.map((u) =>
       `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
     ).join("\n");
-    await ctx.reply(`👥 *Recent Users:*\n\n${list}`, { parse_mode: "Markdown" });
+    await ctx.reply(`👥 **Recent Users:**\n\n${list}`, { parse_mode: "MarkdownV2" });
   });
 
   // /ban <id> [reason] (admin)
@@ -174,9 +196,9 @@ export function initBot(): Telegraf | null {
     if (!targetId) { await ctx.reply("Usage: /ban <telegram_id> [reason]"); return; }
     const ok = await banUser(targetId, reason);
     if (ok) {
-      await ctx.reply(`✅ User \`${targetId}\` banned.\nReason: ${reason}`, { parse_mode: "Markdown" });
+      await ctx.reply(`✅ User \`${targetId}\` banned.\nReason: ${reason}`, { parse_mode: "MarkdownV2" });
     } else {
-      await ctx.reply(`⚠️ User \`${targetId}\` not found in store. They must open the app first.`, { parse_mode: "Markdown" });
+      await ctx.reply(`⚠️ User \`${targetId}\` not found in store. They must open the app first.`, { parse_mode: "MarkdownV2" });
     }
   });
 
@@ -187,9 +209,9 @@ export function initBot(): Telegraf | null {
     if (!targetId) { await ctx.reply("Usage: /unban <telegram_id>"); return; }
     const ok = await unbanUser(targetId);
     if (ok) {
-      await ctx.reply(`✅ User \`${targetId}\` unbanned.`, { parse_mode: "Markdown" });
+      await ctx.reply(`✅ User \`${targetId}\` unbanned.`, { parse_mode: "MarkdownV2" });
     } else {
-      await ctx.reply(`⚠️ User \`${targetId}\` not found in store.`, { parse_mode: "Markdown" });
+      await ctx.reply(`⚠️ User \`${targetId}\` not found in store.`, { parse_mode: "MarkdownV2" });
     }
   });
 
@@ -201,7 +223,7 @@ export function initBot(): Telegraf | null {
     const text = banned.map((u) =>
       `• ${u.firstName} (@${u.username ?? "—"}) — \`${u.telegramId}\`\n  Reason: ${u.bannedReason ?? "none"}`,
     ).join("\n\n");
-    await ctx.reply(`🚫 *Banned Users:*\n\n${text}`, { parse_mode: "Markdown" });
+    await ctx.reply(`🚫 **Banned Users:**\n\n${text}`, { parse_mode: "MarkdownV2" });
   });
 
   tgBot.command("leaderboard", async (ctx) => {
@@ -212,7 +234,7 @@ export function initBot(): Telegraf | null {
       const text = rows.map((row, index) =>
         `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`,
       ).join("\n");
-      await ctx.reply(`🏆 *Study Leaderboard*\n\n${text}`, { parse_mode: "Markdown" });
+      await ctx.reply(`🏆 **Study Leaderboard**\n\n${text}`, { parse_mode: "MarkdownV2" });
     } catch {
       await ctx.reply("Leaderboard is unavailable until the Supabase study tables are created.");
     }
@@ -224,7 +246,7 @@ export function initBot(): Telegraf | null {
     try {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       pendingBroadcasts.add(ctx.from!.id);
-      await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
+      await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.", { parse_mode: "MarkdownV2" });
     } catch (err) {
       logger.error({ err }, "Error initiating broadcast");
       try { await ctx.reply("⚠️ Could not start broadcast"); } catch {}
@@ -233,7 +255,7 @@ export function initBot(): Telegraf | null {
 
   tgBot.command("cancel", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) return;
-    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.");
+    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.", { parse_mode: "MarkdownV2" });
   });
 
   tgBot.on("message", async (ctx) => {
@@ -270,7 +292,10 @@ export function initBot(): Telegraf | null {
     try {
       const { logBroadcast } = await import("./broadcast");
       const contentType = "mixed";
-      const messageText = typeof ctx.message.text === "string" ? ctx.message.text : null;
+      let messageText: string | null = null;
+      if ("text" in ctx.message && typeof ctx.message.text === "string") {
+        messageText = ctx.message.text;
+      }
       const mediaUrl = null;
       await logBroadcast({ adminTelegramId: adminId, contentType, messageText, mediaUrl, totalRecipients: recipients.length, successfulSends: delivered, failedSends: failed });
     } catch (err) {

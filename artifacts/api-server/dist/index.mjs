@@ -64573,6 +64573,32 @@ var import_express3 = __toESM(require_express2(), 1);
 var import_telegraf = __toESM(require_lib6(), 1);
 init_user_store();
 
+// src/lib/waifu.ts
+var WAIFU_API_URL = "https://api.waifu.im/images?IsNsfw=False&PageSize=1";
+function isValidImageUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+async function getRandomSfwImage() {
+  try {
+    const resp = await fetch(WAIFU_API_URL, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5e3)
+    });
+    if (!resp.ok) return null;
+    const payload = await resp.json();
+    const url = payload.items?.[0]?.url;
+    return isValidImageUrl(url) ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 // src/lib/admin.ts
 function isAdmin(telegramUserId) {
   const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
@@ -64583,6 +64609,49 @@ function isAdmin(telegramUserId) {
 // src/lib/bot.ts
 var BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN;
 var bot = null;
+function escapeMarkdownV2(text) {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+}
+async function sendWelcomeMessage(ctx, user) {
+  const appUrl = process.env.RENDER_URL ?? "";
+  const imageUrl = await getRandomSfwImage();
+  const welcomeText = `\u{1F3E5} **Welcome to TNC Nursing Classes!**
+
+Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
+
+${appUrl ? `Tap the button below to open the app \u{1F447}
+
+\u{1F310} ${escapeMarkdownV2(appUrl)}` : "Visit the app to start studying."}`;
+  const replyOpts = { parse_mode: "MarkdownV2" };
+  if (appUrl) {
+    const keyboard = [[
+      { text: "\u{1F4DA} Open TNC Nursing App", web_app: { url: appUrl } }
+    ]];
+    if (isAdmin(user?.id)) {
+      keyboard.push([
+        { text: "\u{1F6E1}\uFE0F Admin Panel", web_app: { url: `${appUrl}/admin` } }
+      ]);
+    }
+    replyOpts.reply_markup = { inline_keyboard: keyboard };
+  }
+  try {
+    if (imageUrl) {
+      await ctx.replyWithPhoto?.(imageUrl, { caption: welcomeText, parse_mode: "MarkdownV2", ...replyOpts });
+      return;
+    }
+    await ctx.reply(welcomeText, replyOpts);
+  } catch (err) {
+    logger.error({ err, user: user.id }, "Failed to send welcome message with image, trying without");
+    try {
+      await ctx.reply(welcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
+    } catch (fallbackErr) {
+      logger.error({ err: fallbackErr, user: user.id }, "Failed to send welcome message even without image");
+      await ctx.reply("\u{1F3E5} Welcome to TNC Nursing Classes!\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n" + (appUrl ? `Tap the button below to open the app \u{1F447}
+
+${appUrl}` : "Visit the app to start studying."), replyOpts);
+    }
+  }
+}
 async function upsertBotUser(user) {
   return await upsertUser(user);
 }
@@ -64608,26 +64677,9 @@ function initBot() {
         await ctx.reply("\u{1F6AB} You are blocked and cannot access this platform.");
         return;
       }
-      const replyOpts = { parse_mode: "Markdown" };
-      if (appUrl) {
-        const keyboard = [[
-          { text: "\u{1F4DA} Open TNC Nursing App", web_app: { url: appUrl } }
-        ]];
-        if (isAdmin(user?.id)) {
-          keyboard.push([
-            { text: "\u{1F6E1}\uFE0F Admin Panel", web_app: { url: `${appUrl}/admin` } }
-          ]);
-        }
-        replyOpts.reply_markup = { inline_keyboard: keyboard };
+      if (user) {
+        await sendWelcomeMessage(ctx, user);
       }
-      await ctx.reply(
-        `\u{1F3E5} *Welcome to TNC Nursing Classes!*
-
-Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
-
-${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to start studying."}`,
-        replyOpts
-      );
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
       try {
@@ -64647,8 +64699,8 @@ ${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to 
         return;
       }
       logger.info({ admin: ctx.from?.id }, "/admin opened");
-      await ctx.reply("\u{1F6E1}\uFE0F *Admin Panel*", {
-        parse_mode: "Markdown",
+      await ctx.reply("\u{1F6E1}\uFE0F **Admin Panel**", {
+        parse_mode: "MarkdownV2",
         reply_markup: {
           inline_keyboard: [[
             { text: "\u{1F6E1}\uFE0F Open Admin Panel", web_app: { url: `${appUrl}/admin` } }
@@ -64665,12 +64717,12 @@ ${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to 
   });
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
-    const adminCmds = admin ? "\n\n*Admin Commands:*\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users\n/leaderboard \u2014 Study leaderboard\n/broadcast \u2014 Broadcast a message" : "";
+    const adminCmds = admin ? "\n\n**Admin Commands:**\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users\n/leaderboard \u2014 Study leaderboard\n/broadcast \u2014 Broadcast a message" : "";
     await ctx.reply(
-      `*TNC Nursing Classes Bot*
+      `**TNC Nursing Classes Bot**
 
 /start \u2014 Open the app${adminCmds}`,
-      { parse_mode: "Markdown" }
+      { parse_mode: "MarkdownV2" }
     );
   });
   tgBot.command("stats", async (ctx) => {
@@ -64680,12 +64732,12 @@ ${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to 
     }
     const { total, banned, active } = await getStats();
     await ctx.reply(
-      `\u{1F4CA} *Bot Stats*
+      `\u{1F4CA} **Bot Stats**
 
 \u{1F465} Total users: ${total}
 \u2705 Active: ${active}
 \u{1F6AB} Banned: ${banned}`,
-      { parse_mode: "Markdown" }
+      { parse_mode: "MarkdownV2" }
     );
   });
   tgBot.command("user", async (ctx) => {
@@ -64711,9 +64763,9 @@ ${appUrl ? "Tap the button below to open the app \u{1F447}" : "Visit the app to 
       `Reason: ${user.bannedReason ?? "\u2014"}`,
       `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`
     ].join("\n");
-    await ctx.reply(`\u{1F9FE} *User Details*
+    await ctx.reply(`\u{1F9FE} **User Details**
 
-${details}`, { parse_mode: "Markdown" });
+${details}`, { parse_mode: "MarkdownV2" });
   });
   tgBot.command("users", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) {
@@ -64728,9 +64780,9 @@ ${details}`, { parse_mode: "Markdown" });
     const list = users.map(
       (u) => `\u2022 ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "\u2014"}) \u2014 \`${u.telegramId}\`${u.isBanned ? " \u{1F6AB}" : ""}`
     ).join("\n");
-    await ctx.reply(`\u{1F465} *Recent Users:*
+    await ctx.reply(`\u{1F465} **Recent Users:**
 
-${list}`, { parse_mode: "Markdown" });
+${list}`, { parse_mode: "MarkdownV2" });
   });
   tgBot.command("ban", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) {
@@ -64747,9 +64799,9 @@ ${list}`, { parse_mode: "Markdown" });
     const ok = await banUser(targetId, reason);
     if (ok) {
       await ctx.reply(`\u2705 User \`${targetId}\` banned.
-Reason: ${reason}`, { parse_mode: "Markdown" });
+Reason: ${reason}`, { parse_mode: "MarkdownV2" });
     } else {
-      await ctx.reply(`\u26A0\uFE0F User \`${targetId}\` not found in store. They must open the app first.`, { parse_mode: "Markdown" });
+      await ctx.reply(`\u26A0\uFE0F User \`${targetId}\` not found in store. They must open the app first.`, { parse_mode: "MarkdownV2" });
     }
   });
   tgBot.command("unban", async (ctx) => {
@@ -64764,9 +64816,9 @@ Reason: ${reason}`, { parse_mode: "Markdown" });
     }
     const ok = await unbanUser(targetId);
     if (ok) {
-      await ctx.reply(`\u2705 User \`${targetId}\` unbanned.`, { parse_mode: "Markdown" });
+      await ctx.reply(`\u2705 User \`${targetId}\` unbanned.`, { parse_mode: "MarkdownV2" });
     } else {
-      await ctx.reply(`\u26A0\uFE0F User \`${targetId}\` not found in store.`, { parse_mode: "Markdown" });
+      await ctx.reply(`\u26A0\uFE0F User \`${targetId}\` not found in store.`, { parse_mode: "MarkdownV2" });
     }
   });
   tgBot.command("banned", async (ctx) => {
@@ -64783,9 +64835,9 @@ Reason: ${reason}`, { parse_mode: "Markdown" });
       (u) => `\u2022 ${u.firstName} (@${u.username ?? "\u2014"}) \u2014 \`${u.telegramId}\`
   Reason: ${u.bannedReason ?? "none"}`
     ).join("\n\n");
-    await ctx.reply(`\u{1F6AB} *Banned Users:*
+    await ctx.reply(`\u{1F6AB} **Banned Users:**
 
-${text}`, { parse_mode: "Markdown" });
+${text}`, { parse_mode: "MarkdownV2" });
   });
   tgBot.command("leaderboard", async (ctx) => {
     const { getLeaderboard: getLeaderboard2 } = await Promise.resolve().then(() => (init_study_store(), study_store_exports));
@@ -64798,9 +64850,9 @@ ${text}`, { parse_mode: "Markdown" });
       const text = rows.map(
         (row, index) => `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} \u2014 ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`
       ).join("\n");
-      await ctx.reply(`\u{1F3C6} *Study Leaderboard*
+      await ctx.reply(`\u{1F3C6} **Study Leaderboard**
 
-${text}`, { parse_mode: "Markdown" });
+${text}`, { parse_mode: "MarkdownV2" });
     } catch {
       await ctx.reply("Leaderboard is unavailable until the Supabase study tables are created.");
     }
@@ -64812,7 +64864,7 @@ ${text}`, { parse_mode: "Markdown" });
         return;
       }
       pendingBroadcasts.add(ctx.from.id);
-      await ctx.reply("\u{1F4E3} Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
+      await ctx.reply("\u{1F4E3} Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.", { parse_mode: "MarkdownV2" });
     } catch (err) {
       logger.error({ err }, "Error initiating broadcast");
       try {
@@ -64823,7 +64875,7 @@ ${text}`, { parse_mode: "Markdown" });
   });
   tgBot.command("cancel", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) return;
-    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.");
+    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.", { parse_mode: "MarkdownV2" });
   });
   tgBot.on("message", async (ctx) => {
     const adminId = ctx.from?.id;
@@ -64860,7 +64912,10 @@ ${text}`, { parse_mode: "Markdown" });
     try {
       const { logBroadcast: logBroadcast2 } = await Promise.resolve().then(() => (init_broadcast(), broadcast_exports));
       const contentType = "mixed";
-      const messageText = typeof ctx.message.text === "string" ? ctx.message.text : null;
+      let messageText = null;
+      if ("text" in ctx.message && typeof ctx.message.text === "string") {
+        messageText = ctx.message.text;
+      }
       const mediaUrl = null;
       await logBroadcast2({ adminTelegramId: adminId, contentType, messageText, mediaUrl, totalRecipients: recipients.length, successfulSends: delivered, failedSends: failed });
     } catch (err) {

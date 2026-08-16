@@ -63911,6 +63911,9 @@ function isPdfCandidate(url) {
   if (/youtube|vimeo|bunny|video|stream|cloudfront|cdn/i.test(value)) return false;
   if (/\.pdf(\?|$)/i.test(value)) return true;
   if (value.includes("/pdf/") || value.includes("application/pdf")) return true;
+  if (value.includes("/uploads/") && (value.includes(".pdf") || value.includes("document") || value.includes("note"))) return true;
+  if (value.includes("drive.google.com") || value.includes("docs.google.com")) return true;
+  if (value.startsWith("http") && /\.(pdf|doc|docx|txt)(\?|$)/i.test(value)) return true;
   return false;
 }
 function isDirectVideoUrl(url) {
@@ -63976,8 +63979,17 @@ function parseChapter(row) {
     deNo.uri,
     deNo._no_url,
     deNo.pdf_url,
+    deNo._url,
+    deNo.link,
+    deNo.file_url,
+    deNo.document_url,
+    deNo.note_url,
     json.pdf_url,
     json._pdf_url,
+    json._no_url,
+    json.note_url,
+    json.document_url,
+    json.file_url,
     typeof json._no === "string" ? json._no : null
   ].filter((value) => typeof value === "string" && isPdfCandidate(value));
   const pdfCandidate = pdfCandidates[0] ?? null;

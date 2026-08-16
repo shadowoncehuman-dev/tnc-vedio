@@ -28455,6 +28455,34 @@ var require_logger = __commonJS({
   }
 });
 
+// src/lib/logger.ts
+var logger_exports = {};
+__export(logger_exports, {
+  logger: () => logger
+});
+var import_pino, isProduction, logger;
+var init_logger = __esm({
+  "src/lib/logger.ts"() {
+    "use strict";
+    import_pino = __toESM(require_pino(), 1);
+    isProduction = process.env.NODE_ENV === "production";
+    logger = (0, import_pino.default)({
+      level: process.env.LOG_LEVEL ?? "info",
+      redact: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "res.headers['set-cookie']"
+      ],
+      ...isProduction ? {} : {
+        transport: {
+          target: "pino-pretty",
+          options: { colorize: true }
+        }
+      }
+    });
+  }
+});
+
 // ../../node_modules/.pnpm/@supabase+supabase-js@2.112.2/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 function getTraceContextExtractor() {
   return globalThis[EXTRACTOR_KEY];
@@ -50039,91 +50067,155 @@ function mapUser(row) {
   };
 }
 async function upsertUser(user) {
-  if (!isSupabaseConfigured2()) {
-    return {
-      id: user.id,
-      telegramId: String(user.id),
-      firstName: user.first_name ?? "",
-      lastName: user.last_name ?? null,
-      username: user.username ?? null,
-      isBanned: false,
-      bannedReason: null,
-      bannedAt: null,
-      firstSeen: (/* @__PURE__ */ new Date()).toISOString(),
-      lastSeen: (/* @__PURE__ */ new Date()).toISOString(),
-      totalStudySeconds: 0
-    };
-  }
-  const supabase = ensureClient();
-  const payload = {
-    telegram_id: user.id,
-    first_name: user.first_name ?? "",
-    last_name: user.last_name ?? null,
+  const fallbackUser = {
+    id: user.id,
+    telegramId: String(user.id),
+    firstName: user.first_name ?? "",
+    lastName: user.last_name ?? null,
     username: user.username ?? null,
-    first_seen: (/* @__PURE__ */ new Date()).toISOString(),
-    last_seen: (/* @__PURE__ */ new Date()).toISOString()
+    isBanned: false,
+    bannedReason: null,
+    bannedAt: null,
+    firstSeen: (/* @__PURE__ */ new Date()).toISOString(),
+    lastSeen: (/* @__PURE__ */ new Date()).toISOString(),
+    totalStudySeconds: 0
   };
-  const { data, error } = await supabase.from("bot_users").upsert(payload, { onConflict: "telegram_id", returning: "representation" }).select();
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error("Supabase did not return the upserted bot user");
-  return mapUser(data[0]);
+  if (!isSupabaseConfigured2()) {
+    return fallbackUser;
+  }
+  try {
+    const supabase = ensureClient();
+    const payload = {
+      telegram_id: user.id,
+      first_name: user.first_name ?? "",
+      last_name: user.last_name ?? null,
+      username: user.username ?? null,
+      first_seen: (/* @__PURE__ */ new Date()).toISOString(),
+      last_seen: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const { data, error } = await supabase.from("bot_users").upsert(payload, { onConflict: "telegram_id", returning: "representation" }).select();
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Supabase did not return the upserted bot user");
+    return mapUser(data[0]);
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err, userId: user.id }, "Supabase upsert failed, using fallback user");
+    return fallbackUser;
+  }
 }
 async function getUser(telegramId) {
   if (!isSupabaseConfigured2()) {
     return void 0;
   }
-  const supabase = ensureClient();
-  const { data, error } = await supabase.from("bot_users").select("*").eq("telegram_id", telegramId).limit(1);
-  if (error) throw error;
-  return data && data[0] ? mapUser(data[0]) : void 0;
+  try {
+    const supabase = ensureClient();
+    const { data, error } = await supabase.from("bot_users").select("*").eq("telegram_id", telegramId).limit(1);
+    if (error) throw error;
+    return data && data[0] ? mapUser(data[0]) : void 0;
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err, telegramId }, "Supabase getUser failed");
+    return void 0;
+  }
 }
 async function banUser(telegramId, reason) {
-  const supabase = ensureClient();
-  const { data, error } = await supabase.from("bot_users").update({ is_banned: true, banned_reason: reason, banned_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("telegram_id", telegramId).select("telegram_id");
-  if (error) throw error;
-  return Boolean(data && data.length > 0);
+  if (!isSupabaseConfigured2()) {
+    return false;
+  }
+  try {
+    const supabase = ensureClient();
+    const { data, error } = await supabase.from("bot_users").update({ is_banned: true, banned_reason: reason, banned_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("telegram_id", telegramId).select("telegram_id");
+    if (error) throw error;
+    return Boolean(data && data.length > 0);
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err, telegramId }, "Supabase banUser failed");
+    return false;
+  }
 }
 async function unbanUser(telegramId) {
-  const supabase = ensureClient();
-  const { data, error } = await supabase.from("bot_users").update({ is_banned: false, banned_reason: null, banned_at: null }).eq("telegram_id", telegramId).select("telegram_id");
-  if (error) throw error;
-  return Boolean(data && data.length > 0);
+  if (!isSupabaseConfigured2()) {
+    return false;
+  }
+  try {
+    const supabase = ensureClient();
+    const { data, error } = await supabase.from("bot_users").update({ is_banned: false, banned_reason: null, banned_at: null }).eq("telegram_id", telegramId).select("telegram_id");
+    if (error) throw error;
+    return Boolean(data && data.length > 0);
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err, telegramId }, "Supabase unbanUser failed");
+    return false;
+  }
 }
 async function listUsers(page, limit) {
-  const supabase = ensureClient();
-  const offset = (page - 1) * limit;
-  const [{ data: rows, error: rowsErr }, { data: all, error: allErr }] = await Promise.all([
-    supabase.from("bot_users").select("*").order("last_seen", { ascending: false }).range(offset, offset + limit - 1),
-    supabase.from("bot_users").select("is_banned")
-  ]);
-  if (rowsErr) throw rowsErr;
-  if (allErr) throw allErr;
-  return {
-    users: (rows || []).map(mapUser),
-    total: (all || []).length,
-    banned: (all || []).filter((u) => u.is_banned).length
-  };
+  if (!isSupabaseConfigured2()) {
+    return { users: [], total: 0, banned: 0 };
+  }
+  try {
+    const supabase = ensureClient();
+    const offset = (page - 1) * limit;
+    const [{ data: rows, error: rowsErr }, { data: all, error: allErr }] = await Promise.all([
+      supabase.from("bot_users").select("*").order("last_seen", { ascending: false }).range(offset, offset + limit - 1),
+      supabase.from("bot_users").select("is_banned")
+    ]);
+    if (rowsErr) throw rowsErr;
+    if (allErr) throw allErr;
+    return {
+      users: (rows || []).map(mapUser),
+      total: (all || []).length,
+      banned: (all || []).filter((u) => u.is_banned).length
+    };
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err }, "Supabase listUsers failed");
+    return { users: [], total: 0, banned: 0 };
+  }
 }
 async function checkBannedStore(telegramId) {
   if (!isSupabaseConfigured2()) {
     return { banned: false };
   }
-  const user = await getUser(String(telegramId));
-  return user?.isBanned ? { banned: true, reason: user.bannedReason ?? void 0 } : { banned: false };
+  try {
+    const user = await getUser(String(telegramId));
+    return user?.isBanned ? { banned: true, reason: user.bannedReason ?? void 0 } : { banned: false };
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err, telegramId }, "Supabase checkBannedStore failed");
+    return { banned: false };
+  }
 }
 async function getStats() {
-  const supabase = ensureClient();
-  const { data, error } = await supabase.from("bot_users").select("is_banned");
-  if (error) throw error;
-  const all = data || [];
-  const banned = all.filter((user) => user.is_banned).length;
-  return { total: all.length, banned, active: all.length - banned };
+  if (!isSupabaseConfigured2()) {
+    return { total: 0, banned: 0, active: 0 };
+  }
+  try {
+    const supabase = ensureClient();
+    const { data, error } = await supabase.from("bot_users").select("is_banned");
+    if (error) throw error;
+    const all = data || [];
+    const banned = all.filter((user) => user.is_banned).length;
+    return { total: all.length, banned, active: all.length - banned };
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err }, "Supabase getStats failed");
+    return { total: 0, banned: 0, active: 0 };
+  }
 }
 async function getAllUsers() {
-  const supabase = ensureClient();
-  const { data, error } = await supabase.from("bot_users").select("*").order("last_seen", { ascending: false });
-  if (error) throw error;
-  return (data || []).map(mapUser);
+  if (!isSupabaseConfigured2()) {
+    return [];
+  }
+  try {
+    const supabase = ensureClient();
+    const { data, error } = await supabase.from("bot_users").select("*").order("last_seen", { ascending: false });
+    if (error) throw error;
+    return (data || []).map(mapUser);
+  } catch (err) {
+    const { logger: logger2 } = await Promise.resolve().then(() => (init_logger(), logger_exports));
+    logger2.warn({ err }, "Supabase getAllUsers failed");
+    return [];
+  }
 }
 var init_user_store = __esm({
   "src/lib/user-store.ts"() {
@@ -63498,24 +63590,7 @@ var health_default = router;
 
 // src/routes/proxy.ts
 var import_express2 = __toESM(require_express2(), 1);
-
-// src/lib/logger.ts
-var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
-var logger = (0, import_pino.default)({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']"
-  ],
-  ...isProduction ? {} : {
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true }
-    }
-  }
-});
+init_logger();
 
 // src/lib/firebase-rest.ts
 import { createSign } from "crypto";
@@ -64568,9 +64643,11 @@ var proxy_default = router2;
 
 // src/routes/bot.ts
 var import_express3 = __toESM(require_express2(), 1);
+init_logger();
 
 // src/lib/bot.ts
 var import_telegraf = __toESM(require_lib6(), 1);
+init_logger();
 init_user_store();
 
 // src/lib/waifu.ts
@@ -65142,6 +65219,7 @@ router4.use(proxy_default);
 var routes_default = router4;
 
 // src/app.ts
+init_logger();
 var app = (0, import_express5.default)();
 app.use(
   (0, import_pino_http.default)({
@@ -65177,6 +65255,7 @@ if (process.env.NODE_ENV === "production") {
 var app_default = app;
 
 // src/index.ts
+init_logger();
 var rawPort = process.env["PORT"];
 if (!rawPort) {
   throw new Error(

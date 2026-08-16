@@ -228,6 +228,11 @@ function parseChapter(row: Record<string, unknown>) {
   // AGGRESSIVE: If no videoUrl but we have a pdfCandidate (even if not valid URL), treat as PDF
   // This handles cases where PDF data exists but isn't a proper URL yet
   const hasPdfData = pdfCandidates.length > 0;
+  
+  // Also update contentType if we have PDF data but no valid URL yet
+  if (hasPdfData && !videoUrl && contentType === "none") {
+    contentType = "pdf";
+  }
 
   // Determine final type
   const finalType = videoUrl

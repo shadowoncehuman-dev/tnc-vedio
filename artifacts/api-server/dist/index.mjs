@@ -64031,6 +64031,9 @@ function parseChapter(row) {
     contentType = "pdf";
   }
   const hasPdfData = pdfCandidates.length > 0;
+  if (hasPdfData && !videoUrl && contentType === "none") {
+    contentType = "pdf";
+  }
   const finalType = videoUrl ? "video" : pdfUrl || hasPdfData ? "pdf" : "content";
   return {
     id: row.id,

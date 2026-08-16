@@ -1,2 +1,21 @@
+# TNC Nursing Classes - robots.txt
+# Allow all search engines to crawl the site
+
 User-agent: *
 Allow: /
+
+# Sitemap location
+Sitemap: https://tnc-vedio.onrender.com/sitemap.xml
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /api/
+Disallow: /pdf/
+Disallow: /watch/
+Disallow: /buy
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 10
+
+# Host
+Host: https://tnc-vedio.onrender.com

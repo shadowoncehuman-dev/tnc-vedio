@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2 } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle } from "lucide-react";
 import { isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 
@@ -138,7 +138,18 @@ export default function Layout({ children }: LayoutProps) {
                     Logout
                   </button>
                 </>
-              ) : null}
+              ) : (
+                <a
+                  href="https://t.me/testsagarbot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                  data-testid="nav-support"
+                >
+                  <MessageCircle size={14} />
+                  Support
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -236,6 +247,18 @@ export default function Layout({ children }: LayoutProps) {
                 </button>
               </div>
             )}
+            {/* Support link */}
+            <div className="border-t mt-2 pt-2 px-4">
+              <a
+                href="https://t.me/testsagarbot"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                <MessageCircle size={16} />
+                Contact Admin / Support
+              </a>
+            </div>
           </div>
         )}
       </header>

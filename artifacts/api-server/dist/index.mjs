@@ -63947,7 +63947,11 @@ function parseChapter(row) {
     vi.url,
     json._vi_url,
     json.video_url,
-    vi.video_url
+    vi.video_url,
+    deVi._vi_url,
+    deVi.video_url,
+    json._de?._vi?._vi_url,
+    json._de?._vi?.url
   ].filter(Boolean);
   let videoUrl = null;
   let contentType = "none";
@@ -63984,12 +63988,19 @@ function parseChapter(row) {
     deNo.file_url,
     deNo.document_url,
     deNo.note_url,
+    deNo.path,
+    deNo.file,
+    deNo.src,
+    deNo.href,
     json.pdf_url,
     json._pdf_url,
     json._no_url,
     json.note_url,
     json.document_url,
     json.file_url,
+    json._no_path,
+    json._no_file,
+    json._no_src,
     typeof json._no === "string" ? json._no : null
   ].filter((value) => typeof value === "string" && isPdfCandidate(value));
   const pdfCandidate = pdfCandidates[0] ?? null;

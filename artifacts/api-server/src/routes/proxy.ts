@@ -180,6 +180,15 @@ function parseChapter(row: Record<string, unknown>) {
     deNo.file,
     deNo.src,
     deNo.href,
+    // Also check json._no directly (not just de._no)
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).url : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).uri : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).path : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).file : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).src : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).href : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).file_url : null,
+    typeof json._no === "object" && json._no !== null ? (json._no as Record<string, unknown>).document_url : null,
     json.pdf_url,
     json._pdf_url,
     json._no_url,
@@ -216,10 +225,14 @@ function parseChapter(row: Record<string, unknown>) {
     contentType = "pdf";
   }
 
+  // AGGRESSIVE: If no videoUrl but we have a pdfCandidate (even if not valid URL), treat as PDF
+  // This handles cases where PDF data exists but isn't a proper URL yet
+  const hasPdfData = pdfCandidates.length > 0;
+
   // Determine final type
   const finalType = videoUrl
     ? "video"
-    : pdfUrl
+    : pdfUrl || hasPdfData
       ? "pdf"
       : "content";
 

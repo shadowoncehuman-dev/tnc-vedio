@@ -63992,6 +63992,15 @@ function parseChapter(row) {
     deNo.file,
     deNo.src,
     deNo.href,
+    // Also check json._no directly (not just de._no)
+    typeof json._no === "object" && json._no !== null ? json._no.url : null,
+    typeof json._no === "object" && json._no !== null ? json._no.uri : null,
+    typeof json._no === "object" && json._no !== null ? json._no.path : null,
+    typeof json._no === "object" && json._no !== null ? json._no.file : null,
+    typeof json._no === "object" && json._no !== null ? json._no.src : null,
+    typeof json._no === "object" && json._no !== null ? json._no.href : null,
+    typeof json._no === "object" && json._no !== null ? json._no.file_url : null,
+    typeof json._no === "object" && json._no !== null ? json._no.document_url : null,
     json.pdf_url,
     json._pdf_url,
     json._no_url,
@@ -64021,7 +64030,8 @@ function parseChapter(row) {
     videoUrl = null;
     contentType = "pdf";
   }
-  const finalType = videoUrl ? "video" : pdfUrl ? "pdf" : "content";
+  const hasPdfData = pdfCandidates.length > 0;
+  const finalType = videoUrl ? "video" : pdfUrl || hasPdfData ? "pdf" : "content";
   return {
     id: row.id,
     rowId: row.row_id,

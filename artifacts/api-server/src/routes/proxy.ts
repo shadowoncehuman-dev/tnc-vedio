@@ -218,6 +218,14 @@ function parseChapter(row: Record<string, unknown>) {
     if (contentType === "none") contentType = "pdf";
   }
 
+  // FALLBACK: If we have a PDF candidate but it's not a recognized format,
+  // try treating it as a CRM path anyway (relative path)
+  if (!videoUrl && !pdfUrl && pdfCandidate && !pdfCandidate.startsWith("http")) {
+    // Try as CRM path even without "uploads/" prefix
+    pdfUrl = `/api/pdf?path=${encodeURIComponent(rawPdfPath)}`;
+    if (contentType === "none") contentType = "pdf";
+  }
+
   // E-notes must remain PDF-first even when the CRM row also contains a
   // preview/video field. The PDF route should never send a learner to video.
   if (pdfUrl) {
@@ -374,15 +382,26 @@ router.get("/pdf", async (req: Request, res: Response): Promise<void> => {
       : `${CRM_BASE}/${String(pdfPath).replace(/^\/+/, "")}`;
     const upstream = await fetch(targetUrl);
     if (!upstream.ok) {
+      // Try alternative: if path was given, try with uploads/ prefix
+      if (pdfPath && !String(pdfPath).startsWith("uploads/")) {
+        const altUrl = `${CRM_BASE}/uploads/${String(pdfPath).replace(/^\/+/, "")}`;
+        const altUpstream = await fetch(altUrl);
+        if (altUpstream.ok) {
+          const ct = altUpstream.headers.get("content-type") ?? "application/pdf";
+          res.setHeader("Content-Type", ct);
+          res.setHeader("Content-Disposition", "inline");
+          res.setHeader("Cache-Control", "public, max-age=86400");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          const buf = await altUpstream.arrayBuffer();
+          res.end(Buffer.from(buf));
+          return;
+        }
+      }
       res.status(upstream.status).json({ error: "PDF not found" });
       return;
     }
     const ct = upstream.headers.get("content-type") ?? "application/pdf";
-    const isPdf = ct.toLowerCase().includes("application/pdf") || String(targetUrl).toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      res.status(415).json({ error: "Requested resource is not a PDF" });
-      return;
-    }
+    // Be more permissive - allow any content type for PDF proxy, just serve it
     res.setHeader("Content-Type", ct);
     res.setHeader("Content-Disposition", "inline");
     res.setHeader("Cache-Control", "public, max-age=86400");

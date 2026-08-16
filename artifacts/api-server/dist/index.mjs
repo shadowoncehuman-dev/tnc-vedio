@@ -64026,6 +64026,10 @@ function parseChapter(row) {
     pdfUrl = `/api/pdf?url=${encodeURIComponent(pdfCandidate)}`;
     if (contentType === "none") contentType = "pdf";
   }
+  if (!videoUrl && !pdfUrl && pdfCandidate && !pdfCandidate.startsWith("http")) {
+    pdfUrl = `/api/pdf?path=${encodeURIComponent(rawPdfPath)}`;
+    if (contentType === "none") contentType = "pdf";
+  }
   if (pdfUrl) {
     videoUrl = null;
     contentType = "pdf";
@@ -64131,15 +64135,24 @@ router2.get("/pdf", async (req, res) => {
     const targetUrl = typeof pdfUrl === "string" && pdfUrl.startsWith("http") ? pdfUrl : `${CRM_BASE}/${String(pdfPath).replace(/^\/+/, "")}`;
     const upstream = await fetch(targetUrl);
     if (!upstream.ok) {
+      if (pdfPath && !String(pdfPath).startsWith("uploads/")) {
+        const altUrl = `${CRM_BASE}/uploads/${String(pdfPath).replace(/^\/+/, "")}`;
+        const altUpstream = await fetch(altUrl);
+        if (altUpstream.ok) {
+          const ct2 = altUpstream.headers.get("content-type") ?? "application/pdf";
+          res.setHeader("Content-Type", ct2);
+          res.setHeader("Content-Disposition", "inline");
+          res.setHeader("Cache-Control", "public, max-age=86400");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          const buf2 = await altUpstream.arrayBuffer();
+          res.end(Buffer.from(buf2));
+          return;
+        }
+      }
       res.status(upstream.status).json({ error: "PDF not found" });
       return;
     }
     const ct = upstream.headers.get("content-type") ?? "application/pdf";
-    const isPdf = ct.toLowerCase().includes("application/pdf") || String(targetUrl).toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      res.status(415).json({ error: "Requested resource is not a PDF" });
-      return;
-    }
     res.setHeader("Content-Type", ct);
     res.setHeader("Content-Disposition", "inline");
     res.setHeader("Cache-Control", "public, max-age=86400");

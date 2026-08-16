@@ -1,12 +1,14 @@
 import { useParams, Link } from "wouter";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, ExternalLink, FileText } from "lucide-react";
+import { ArrowLeft, Lock, ExternalLink, FileText, Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
+import { useState } from "react";
 
 export default function PdfViewerPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const user = getUser();
+  const [pdfLoading, setPdfLoading] = useState(true);
 
   // Use single-session endpoint instead of fetching all sessions
   const { data: session, isLoading } = useGetSession(sessionId ?? "");
@@ -102,13 +104,24 @@ export default function PdfViewerPage() {
               <p className="text-xs text-gray-400 mt-1">It may be available only in the mobile app.</p>
             </div>
           ) : (
-            <iframe
-              src={pdfUrl}
-              className="w-full border-0"
-              style={{ height: "80vh" }}
-              title={session.title}
-              data-testid="pdf-iframe"
-            />
+            <div className="relative" style={{ height: "80vh" }}>
+              {/* Loading overlay */}
+              {pdfLoading && (
+                <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-10">
+                  <Loader2 size={32} className="animate-spin text-blue-600 mb-3" />
+                  <p className="text-gray-600 text-sm">Loading PDF...</p>
+                  <p className="text-xs text-gray-400 mt-1">This may take a few seconds</p>
+                </div>
+              )}
+              <iframe
+                src={pdfUrl}
+                className="w-full h-full border-0"
+                title={session.title}
+                data-testid="pdf-iframe"
+                onLoad={() => setPdfLoading(false)}
+                style={{ display: pdfLoading ? "none" : "block" }}
+              />
+            </div>
           )}
         </div>
       </div>

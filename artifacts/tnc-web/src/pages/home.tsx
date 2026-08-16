@@ -170,18 +170,11 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100 group"
     >
       <div className="h-40 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 relative">
-        {course.imageUrl ? (
-          <img
-            src={course.imageUrl}
-            alt={course.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <BookOpen size={48} className="text-blue-200" />
-          </div>
-        )}
+        <img
+          src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+          alt={course.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
         {isNew && (
           <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
             <Zap size={9} /> NEW

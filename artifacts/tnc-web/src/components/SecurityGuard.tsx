@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 
 /**
@@ -12,6 +12,8 @@ export function SecurityGuard() {
   const [, setLocation] = useLocation();
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [blockRequests, setBlockRequests] = useState(false);
+  const isBlockingRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
     // 1. Disable keyboard shortcuts
@@ -44,7 +46,7 @@ export function SecurityGuard() {
         return false;
       }
 
-      // Disable Ctrl+C, Ctrl+V (Copy/Paste) - optional, can be restrictive
+      // Disable Ctrl+C, Ctrl+V (Copy/Paste)
       if (e.ctrlKey && (e.key === "c" || e.key === "v")) {
         e.preventDefault();
         e.stopPropagation();
@@ -64,14 +66,25 @@ export function SecurityGuard() {
       return false;
     };
 
-    // 3. DevTools detection using multiple methods
-    let devToolsCheckInterval: ReturnType<typeof setInterval>;
-    let lastCheck = Date.now();
+    // 3. Immediately block requests on mount - prevent any API calls before detection
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      if (isBlockingRef.current || blockRequests) {
+        throw new Error("Requests blocked: Developer tools detected");
+      }
+      return originalFetch.apply(window, args);
+    };
 
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (...args) {
+      if (isBlockingRef.current || blockRequests) {
+        throw new Error("Requests blocked: Developer tools detected");
+      }
+      return originalXHROpen.apply(this, args);
+    };
+
+    // 4. DevTools detection using multiple methods - AGGRESSIVE
     const checkDevTools = () => {
-      const now = Date.now();
-      const threshold = 200; // ms
-
       // Method 1: Window size difference (DevTools docked)
       const widthDiff = window.outerWidth - window.innerWidth;
       const heightDiff = window.outerHeight - window.innerHeight;
@@ -82,7 +95,7 @@ export function SecurityGuard() {
       // eslint-disable-next-line no-console
       console.log("%c", "color: transparent");
       const end = performance.now();
-      const isTimingAttack = end - start > 100;
+      const isTimingAttack = end - start > 50; // More sensitive
 
       // Method 3: Debugger detection
       let isDebugger = false;
@@ -106,14 +119,20 @@ export function SecurityGuard() {
         isToStringHooked = true;
       }
 
-      const detected = isDocked || isTimingAttack || isDebugger || isToStringHooked;
+      // Method 5: Check for DevTools-specific properties
+      const hasDevToolsProps = !!(window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__ || 
+                               !!(window as any).__VUE_DEVTOOLS_GLOBAL_HOOK__ ||
+                               (window as any).chrome?.runtime?.id;
+
+      const detected = isDocked || isTimingAttack || isDebugger || isToStringHooked || hasDevToolsProps;
 
       if (detected && !devToolsOpen) {
+        isBlockingRef.current = true; // IMMEDIATELY block requests
         setDevToolsOpen(true);
         setBlockRequests(true);
-        // Redirect to home page
+        // Redirect to home page IMMEDIATELY
         setLocation("/");
-        // Show warning
+        // Show warning overlay
         document.body.innerHTML = `
           <div style="
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -131,28 +150,10 @@ export function SecurityGuard() {
           </div>
         `;
       } else if (!detected && devToolsOpen) {
+        isBlockingRef.current = false;
         setDevToolsOpen(false);
         setBlockRequests(false);
       }
-
-      lastCheck = now;
-    };
-
-    // 4. Block fetch/XHR when DevTools is open
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      if (blockRequests) {
-        throw new Error("Requests blocked: Developer tools detected");
-      }
-      return originalFetch.apply(window, args);
-    };
-
-    const originalXHROpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (...args) {
-      if (blockRequests) {
-        throw new Error("Requests blocked: Developer tools detected");
-      }
-      return originalXHROpen.apply(this, args);
     };
 
     // 5. Obfuscate sensitive data - override console methods
@@ -202,15 +203,15 @@ export function SecurityGuard() {
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("contextmenu", handleContextMenu, true);
 
-    // Start DevTools detection interval
-    devToolsCheckInterval = setInterval(checkDevTools, 1000);
+    // Start DevTools detection interval - FAST (100ms)
+    intervalRef.current = setInterval(checkDevTools, 100);
     checkDevTools(); // Initial check
 
     // Cleanup
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("contextmenu", handleContextMenu, true);
-      clearInterval(devToolsCheckInterval);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       window.fetch = originalFetch;
       XMLHttpRequest.prototype.open = originalXHROpen;
       console.log = originalConsoleLog;

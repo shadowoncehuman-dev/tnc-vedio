@@ -175,18 +175,11 @@ export default function BuyPage() {
                   data-testid={`card-buy-${course.rowId}`}
                 >
                   <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
-                    {course.imageUrl ? (
-                      <img
-                        src={course.imageUrl}
-                        alt={course.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingCart size={40} className="text-blue-200" />
-                      </div>
-                    )}
+                    <img
+                      src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+                      alt={course.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
 
                     {alreadyPurchased && (
                       <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-green-500 text-white text-xs font-semibold">

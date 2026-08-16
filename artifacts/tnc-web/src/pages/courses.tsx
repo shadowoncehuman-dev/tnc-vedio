@@ -144,18 +144,17 @@ export default function CoursesPage() {
                     data-testid={`card-course-${course.rowId}`}
                   >
                     <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
-                      {course.imageUrl ? (
+                      {(() => {
+                      // Force the specific thumbnail for ALL courses
+                      const thumbnailUrl = "https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg";
+                      return (
                         <img
-                          src={course.imageUrl}
+                          src={thumbnailUrl}
                           alt={course.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen size={48} className="text-blue-200" />
-                        </div>
-                      )}
+                      );
+                    })()}
                       {/* Badges */}
                       <div className="absolute top-3 left-3 flex gap-1.5">
                         {isNew && (

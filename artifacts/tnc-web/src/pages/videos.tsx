@@ -94,18 +94,11 @@ export default function VideosPage() {
                 >
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100 group flex flex-col h-full">
                     <div className="relative h-40 overflow-hidden bg-gradient-to-br from-blue-900 to-indigo-900">
-                      {course.imageUrl ? (
-                        <img
-                          src={course.imageUrl}
-                          alt={course.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen size={40} className="text-white/20" />
-                        </div>
-                      )}
+                      <img
+                        src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+                        alt={course.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
                           <PlayCircle size={24} className="text-blue-700" />

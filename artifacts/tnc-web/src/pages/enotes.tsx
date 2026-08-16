@@ -75,21 +75,11 @@ function CourseNoteRow({
             isUnlocked ? "bg-red-50" : "bg-gray-100"
           }`}
         >
-          {course.imageUrl ? (
-            <img
-              src={course.imageUrl}
-              alt={course.name}
-              className="w-full h-full object-cover rounded-xl"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="text-center">
-              <FileText size={22} className={isUnlocked ? "text-red-500" : "text-gray-400"} />
-              <span className="text-[9px] mt-0.5 block font-bold text-gray-400">PDF</span>
-            </div>
-          )}
+          <img
+            src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+            alt={course.name}
+            className="w-full h-full object-cover rounded-xl"
+          />
         </div>
 
         <div className="flex-1 min-w-0">

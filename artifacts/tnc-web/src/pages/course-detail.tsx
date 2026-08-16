@@ -97,11 +97,9 @@ export default function CourseDetailPage() {
             </button>
           </div>
           <div className="flex flex-col md:flex-row gap-6">
-            {course.imageUrl && (
-              <div className="w-full md:w-48 h-32 md:h-36 rounded-xl overflow-hidden flex-shrink-0">
-                <img src={course.imageUrl} alt={course.name} className="w-full h-full object-cover" />
-              </div>
-            )}
+            <div className="w-full md:w-48 h-32 md:h-36 rounded-xl overflow-hidden flex-shrink-0">
+              <img src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg" alt={course.name} className="w-full h-full object-cover" />
+            </div>
             <div className="flex-1">
               <h1 className="text-xl md:text-2xl font-black mb-2">{course.name}</h1>
               {course.description && course.description !== "Description" && (

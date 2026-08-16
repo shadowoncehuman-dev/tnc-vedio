@@ -55,6 +55,22 @@ export async function upsertUser(user: {
   last_name?: string;
   username?: string;
 }): Promise<BotUser> {
+  if (!isSupabaseConfigured()) {
+    return {
+      id: user.id,
+      telegramId: String(user.id),
+      firstName: user.first_name ?? "",
+      lastName: user.last_name ?? null,
+      username: user.username ?? null,
+      isBanned: false,
+      bannedReason: null,
+      bannedAt: null,
+      firstSeen: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      totalStudySeconds: 0,
+    };
+  }
+
   const supabase = ensureClient();
   const payload = {
     telegram_id: user.id,
@@ -74,6 +90,10 @@ export async function upsertUser(user: {
 }
 
 export async function getUser(telegramId: string): Promise<BotUser | undefined> {
+  if (!isSupabaseConfigured()) {
+    return undefined;
+  }
+
   const supabase = ensureClient();
   const { data, error } = await supabase
     .from<SupabaseBotUser>("bot_users")
@@ -128,6 +148,10 @@ export async function listUsers(
 export async function checkBannedStore(
   telegramId: string | number,
 ): Promise<{ banned: boolean; reason?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { banned: false };
+  }
+
   const user = await getUser(String(telegramId));
   return user?.isBanned
     ? { banned: true, reason: user.bannedReason ?? undefined }

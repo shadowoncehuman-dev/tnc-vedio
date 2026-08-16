@@ -64615,7 +64615,7 @@ function escapeMarkdownV2(text) {
 async function sendWelcomeMessage(ctx, user) {
   const appUrl = process.env.RENDER_URL ?? "";
   const imageUrl = await getRandomSfwImage();
-  const welcomeText = `\u{1F3E5} **Welcome to TNC Nursing Classes!**
+  const welcomeText = `\u{1F3E5} *Welcome to TNC Nursing Classes!*
 
 Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
 
@@ -64699,7 +64699,7 @@ function initBot() {
         return;
       }
       logger.info({ admin: ctx.from?.id }, "/admin opened");
-      await ctx.reply("\u{1F6E1}\uFE0F **Admin Panel**", {
+      await ctx.reply("\u{1F6E1}\uFE0F *Admin Panel*", {
         parse_mode: "MarkdownV2",
         reply_markup: {
           inline_keyboard: [[
@@ -64717,9 +64717,9 @@ function initBot() {
   });
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
-    const adminCmds = admin ? "\n\n**Admin Commands:**\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users\n/leaderboard \u2014 Study leaderboard\n/broadcast \u2014 Broadcast a message" : "";
+    const adminCmds = admin ? "\n\n*Admin Commands:*\n/stats \u2014 View user stats\n/users \u2014 List recent users\n/ban \\<id\\> \\[reason\\] \u2014 Ban a user\n/unban \\<id\\> \u2014 Unban a user\n/banned \u2014 List banned users\n/leaderboard \u2014 Study leaderboard\n/broadcast \u2014 Broadcast a message" : "";
     await ctx.reply(
-      `**TNC Nursing Classes Bot**
+      `*TNC Nursing Classes Bot*
 
 /start \u2014 Open the app${adminCmds}`,
       { parse_mode: "MarkdownV2" }
@@ -64732,7 +64732,7 @@ function initBot() {
     }
     const { total, banned, active } = await getStats();
     await ctx.reply(
-      `\u{1F4CA} **Bot Stats**
+      `\u{1F4CA} *Bot Stats*
 
 \u{1F465} Total users: ${total}
 \u2705 Active: ${active}
@@ -64763,7 +64763,7 @@ function initBot() {
       `Reason: ${user.bannedReason ?? "\u2014"}`,
       `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`
     ].join("\n");
-    await ctx.reply(`\u{1F9FE} **User Details**
+    await ctx.reply(`\u{1F9FE} *User Details*
 
 ${details}`, { parse_mode: "MarkdownV2" });
   });
@@ -64780,7 +64780,7 @@ ${details}`, { parse_mode: "MarkdownV2" });
     const list = users.map(
       (u) => `\u2022 ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "\u2014"}) \u2014 \`${u.telegramId}\`${u.isBanned ? " \u{1F6AB}" : ""}`
     ).join("\n");
-    await ctx.reply(`\u{1F465} **Recent Users:**
+    await ctx.reply(`\u{1F465} *Recent Users:*
 
 ${list}`, { parse_mode: "MarkdownV2" });
   });
@@ -64835,7 +64835,7 @@ Reason: ${reason}`, { parse_mode: "MarkdownV2" });
       (u) => `\u2022 ${u.firstName} (@${u.username ?? "\u2014"}) \u2014 \`${u.telegramId}\`
   Reason: ${u.bannedReason ?? "none"}`
     ).join("\n\n");
-    await ctx.reply(`\u{1F6AB} **Banned Users:**
+    await ctx.reply(`\u{1F6AB} *Banned Users:*
 
 ${text}`, { parse_mode: "MarkdownV2" });
   });
@@ -64850,7 +64850,7 @@ ${text}`, { parse_mode: "MarkdownV2" });
       const text = rows.map(
         (row, index) => `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} \u2014 ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`
       ).join("\n");
-      await ctx.reply(`\u{1F3C6} **Study Leaderboard**
+      await ctx.reply(`\u{1F3C6} *Study Leaderboard*
 
 ${text}`, { parse_mode: "MarkdownV2" });
     } catch {

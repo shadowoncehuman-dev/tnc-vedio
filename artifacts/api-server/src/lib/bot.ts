@@ -24,7 +24,7 @@ async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: stri
   const appUrl = process.env.RENDER_URL ?? "";
   const imageUrl = await getRandomSfwImage();
   
-  const welcomeText = `🏥 **Welcome to TNC Nursing Classes!**
+  const welcomeText = `🏥 *Welcome to TNC Nursing Classes!*
 
 Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
 
@@ -123,7 +123,7 @@ export function initBot(): Telegraf | null {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       if (!appUrl) { await ctx.reply("❌ RENDER_URL not set"); return; }
       logger.info({ admin: ctx.from?.id }, "/admin opened");
-      await ctx.reply("🛡️ **Admin Panel**", {
+      await ctx.reply("🛡️ *Admin Panel*", {
         parse_mode: "MarkdownV2",
         reply_markup: {
           inline_keyboard: [[
@@ -141,10 +141,10 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-       ? "\n\n**Admin Commands:**\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
+       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
       : "";
     await ctx.reply(
-      `**TNC Nursing Classes Bot**\n\n/start — Open the app${adminCmds}`,
+      `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,
       { parse_mode: "MarkdownV2" },
     );
   });
@@ -154,7 +154,7 @@ export function initBot(): Telegraf | null {
     if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
     const { total, banned, active } = await getStats();
     await ctx.reply(
-      `📊 **Bot Stats**\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
+      `📊 *Bot Stats*\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
       { parse_mode: "MarkdownV2" },
     );
   });
@@ -173,7 +173,7 @@ export function initBot(): Telegraf | null {
       `Reason: ${user.bannedReason ?? "—"}`,
       `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`,
     ].join("\n");
-    await ctx.reply(`🧾 **User Details**\n\n${details}`, { parse_mode: "MarkdownV2" });
+    await ctx.reply(`🧾 *User Details*\n\n${details}`, { parse_mode: "MarkdownV2" });
   });
 
   // /users (admin)
@@ -184,7 +184,7 @@ export function initBot(): Telegraf | null {
     const list = users.map((u) =>
       `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
     ).join("\n");
-    await ctx.reply(`👥 **Recent Users:**\n\n${list}`, { parse_mode: "MarkdownV2" });
+    await ctx.reply(`👥 *Recent Users:*\n\n${list}`, { parse_mode: "MarkdownV2" });
   });
 
   // /ban <id> [reason] (admin)
@@ -223,7 +223,7 @@ export function initBot(): Telegraf | null {
     const text = banned.map((u) =>
       `• ${u.firstName} (@${u.username ?? "—"}) — \`${u.telegramId}\`\n  Reason: ${u.bannedReason ?? "none"}`,
     ).join("\n\n");
-    await ctx.reply(`🚫 **Banned Users:**\n\n${text}`, { parse_mode: "MarkdownV2" });
+    await ctx.reply(`🚫 *Banned Users:*\n\n${text}`, { parse_mode: "MarkdownV2" });
   });
 
   tgBot.command("leaderboard", async (ctx) => {
@@ -234,7 +234,7 @@ export function initBot(): Telegraf | null {
       const text = rows.map((row, index) =>
         `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`,
       ).join("\n");
-      await ctx.reply(`🏆 **Study Leaderboard**\n\n${text}`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`🏆 *Study Leaderboard*\n\n${text}`, { parse_mode: "MarkdownV2" });
     } catch {
       await ctx.reply("Leaderboard is unavailable until the Supabase study tables are created.");
     }

@@ -28,7 +28,10 @@ async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: stri
 
 Access all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.
 
-${appUrl ? `Tap the button below to open the app 👇\n\n🌐 ${escapeMarkdownV2(appUrl)}` : "Visit the app to start studying."}`;
+${appUrl ? `Tap the button below to open the app 👇\n\n🌐 ${appUrl}` : "Visit the app to start studying."}`;
+
+  // Escape the entire message for MarkdownV2
+  const escapedWelcomeText = escapeMarkdownV2(welcomeText);
 
   const replyOpts: Record<string, unknown> = { parse_mode: "MarkdownV2" };
 
@@ -46,19 +49,19 @@ ${appUrl ? `Tap the button below to open the app 👇\n\n🌐 ${escapeMarkdownV2
 
   try {
     if (imageUrl) {
-      await ctx.replyWithPhoto?.(imageUrl, { caption: welcomeText, parse_mode: "MarkdownV2", ...replyOpts });
+      await ctx.replyWithPhoto?.(imageUrl, { caption: escapedWelcomeText, parse_mode: "MarkdownV2", ...replyOpts });
       return;
     }
-    await ctx.reply(welcomeText, replyOpts);
+    await ctx.reply(escapedWelcomeText, replyOpts);
   } catch (err) {
     logger.error({ err, user: user.id }, "Failed to send welcome message with image, trying without");
     // Fallback without image
     try {
-      await ctx.reply(welcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
+      await ctx.reply(escapedWelcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
     } catch (fallbackErr) {
       logger.error({ err: fallbackErr, user: user.id }, "Failed to send welcome message even without image");
-      // Last resort - plain text
-      await ctx.reply("🏥 Welcome to TNC Nursing Classes!\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n" + (appUrl ? `Tap the button below to open the app 👇\n\n${appUrl}` : "Visit the app to start studying."), replyOpts);
+      // Last resort - plain text (no markdown)
+      await ctx.reply("🏥 Welcome to TNC Nursing Classes!\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n" + (appUrl ? `Tap the button below to open the app 👇\n\n${appUrl}` : "Visit the app to start studying."), { ...replyOpts, parse_mode: undefined });
     }
   }
 }

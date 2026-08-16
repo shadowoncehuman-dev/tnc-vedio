@@ -64698,7 +64698,8 @@ Access all courses, video lectures, quizzes, and e-notes for your nursing exam p
 
 ${appUrl ? `Tap the button below to open the app \u{1F447}
 
-\u{1F310} ${escapeMarkdownV2(appUrl)}` : "Visit the app to start studying."}`;
+\u{1F310} ${appUrl}` : "Visit the app to start studying."}`;
+  const escapedWelcomeText = escapeMarkdownV2(welcomeText);
   const replyOpts = { parse_mode: "MarkdownV2" };
   if (appUrl) {
     const keyboard = [[
@@ -64713,19 +64714,19 @@ ${appUrl ? `Tap the button below to open the app \u{1F447}
   }
   try {
     if (imageUrl) {
-      await ctx.replyWithPhoto?.(imageUrl, { caption: welcomeText, parse_mode: "MarkdownV2", ...replyOpts });
+      await ctx.replyWithPhoto?.(imageUrl, { caption: escapedWelcomeText, parse_mode: "MarkdownV2", ...replyOpts });
       return;
     }
-    await ctx.reply(welcomeText, replyOpts);
+    await ctx.reply(escapedWelcomeText, replyOpts);
   } catch (err) {
     logger.error({ err, user: user.id }, "Failed to send welcome message with image, trying without");
     try {
-      await ctx.reply(welcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
+      await ctx.reply(escapedWelcomeText, { parse_mode: "MarkdownV2", ...replyOpts });
     } catch (fallbackErr) {
       logger.error({ err: fallbackErr, user: user.id }, "Failed to send welcome message even without image");
       await ctx.reply("\u{1F3E5} Welcome to TNC Nursing Classes!\n\nAccess all courses, video lectures, quizzes, and e-notes for your nursing exam preparation.\n\n" + (appUrl ? `Tap the button below to open the app \u{1F447}
 
-${appUrl}` : "Visit the app to start studying."), replyOpts);
+${appUrl}` : "Visit the app to start studying."), { ...replyOpts, parse_mode: void 0 });
     }
   }
 }

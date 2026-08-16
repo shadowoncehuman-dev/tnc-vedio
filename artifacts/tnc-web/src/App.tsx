@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BannedScreen from "@/components/BannedScreen";
 import PageLoader from "@/components/PageLoader";
+import SecurityGuard from "@/components/SecurityGuard";
 import { getTelegramInitData, getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp, openExternalLink } from "@/lib/telegram";
 
 import HomePage from "@/pages/home";
@@ -98,12 +99,17 @@ function App() {
     }
   }, []);
 
+  // Security guard - runs on every page load
+  // This component handles keyboard blocking, devtools detection, and request blocking
+  // It renders null but sets up all security measures in useEffect
+
   if (checking) return <PageLoader />;
   if (banned) return <BannedScreen />;
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <SecurityGuard />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>

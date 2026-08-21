@@ -63383,7 +63383,8 @@ var GetCoursesResponse = arrayType(GetCoursesResponseItem);
 var ListSessionsQueryParams = objectType({
   "courseId": coerce.string().optional(),
   "type": coerce.string().optional(),
-  "limit": coerce.number().optional()
+  "limit": coerce.number().optional(),
+  "search": coerce.string().optional()
 });
 var ListSessionsResponseItem = objectType({
   "id": numberType(),
@@ -63941,42 +63942,43 @@ function parseChapter(row) {
   const de = json._de ?? {};
   const deVi = de._vi ?? {};
   const deNo = de._no ?? {};
-  const rawVideoUrls = [
-    vi._vi_url,
-    deVi.url,
-    vi.url,
-    json._vi_url,
-    json.video_url,
-    vi.video_url,
-    deVi._vi_url,
-    deVi.video_url,
-    json._de?._vi?._vi_url,
-    json._de?._vi?.url
-  ].filter(Boolean);
-  let videoUrl = null;
-  let contentType = "none";
-  for (const raw of rawVideoUrls) {
-    if (!raw || typeof raw !== "string") continue;
-    if (isFirebaseStorageUrl(raw)) {
-      videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
-      contentType = "youtube";
-      break;
-    }
-    if (isYouTubeUrl(raw)) {
-      videoUrl = raw;
-      contentType = "youtube";
-      break;
-    }
-    if (isDirectVideoUrl(raw)) {
-      videoUrl = raw;
-      contentType = "youtube";
-      break;
-    }
-  }
   const firebaseId = vi._fs_id ?? deVi.fs_id ?? "";
   const hasFirebaseId = typeof firebaseId === "string" && firebaseId.trim().length > 10;
-  if (!videoUrl && hasFirebaseId) {
+  let videoUrl = null;
+  let contentType = "none";
+  if (hasFirebaseId) {
     contentType = "firebase";
+  } else {
+    const rawVideoUrls = [
+      vi._vi_url,
+      deVi.url,
+      vi.url,
+      json._vi_url,
+      json.video_url,
+      vi.video_url,
+      deVi._vi_url,
+      deVi.video_url,
+      json._de?._vi?._vi_url,
+      json._de?._vi?.url
+    ].filter(Boolean);
+    for (const raw of rawVideoUrls) {
+      if (!raw || typeof raw !== "string") continue;
+      if (isFirebaseStorageUrl(raw)) {
+        videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
+        contentType = "youtube";
+        break;
+      }
+      if (isYouTubeUrl(raw)) {
+        videoUrl = raw;
+        contentType = "youtube";
+        break;
+      }
+      if (isDirectVideoUrl(raw)) {
+        videoUrl = raw;
+        contentType = "youtube";
+        break;
+      }
+    }
   }
   const pdfCandidates = [
     deNo.url,
@@ -64241,7 +64243,7 @@ router2.get("/notes", async (req, res) => {
 });
 router2.get("/sessions", async (req, res) => {
   try {
-    const { courseId, limit: limitParam, type, sort, page: pageParam } = req.query;
+    const { courseId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
     const cond = {};
     if (courseId) cond.co_refid = courseId;
     const data = await crmQuery({
@@ -64256,6 +64258,12 @@ router2.get("/sessions", async (req, res) => {
       return;
     }
     let sessions = data.map(parseChapter);
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      const searchLower = search.trim().toLowerCase();
+      sessions = sessions.filter(
+        (s) => String(s.title ?? "").toLowerCase().includes(searchLower)
+      );
+    }
     if (type === "video") {
       sessions = sessions.filter((s) => s.contentType === "youtube" || s.videoUrl);
     } else if (type === "pdf") {

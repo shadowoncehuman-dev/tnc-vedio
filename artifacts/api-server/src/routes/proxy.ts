@@ -121,48 +121,51 @@ function parseChapter(row: Record<string, unknown>) {
   const deVi = (de._vi as Record<string, unknown>) ?? {};
   const deNo = (de._no as Record<string, unknown>) ?? {};
 
-  // Collect all possible video URL fields from both old and new schema
-  const rawVideoUrls = [
-    vi._vi_url,
-    deVi.url,
-    vi.url,
-    json._vi_url,
-    json.video_url,
-    vi.video_url,
-    deVi._vi_url,
-    deVi.video_url,
-    json._de?._vi?._vi_url,
-    json._de?._vi?.url,
-  ].filter(Boolean) as string[];
+  // Firebase ID for secured content (UUID style) - PRIORITY 1
+  // This uses /api/firebase-stream/:fsId which supports Range requests for seeking
+  const firebaseId = (vi._fs_id ?? deVi.fs_id ?? "") as string;
+  const hasFirebaseId = typeof firebaseId === "string" && firebaseId.trim().length > 10;
 
   let videoUrl: string | null = null;
   let contentType: "youtube" | "firebase" | "pdf" | "none" = "none";
 
-  for (const raw of rawVideoUrls) {
-    if (!raw || typeof raw !== "string") continue;
-    if (isFirebaseStorageUrl(raw)) {
-      videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
-      contentType = "youtube"; // treat as playable video
-      break;
-    }
-    if (isYouTubeUrl(raw)) {
-      videoUrl = raw;
-      contentType = "youtube";
-      break;
-    }
-    if (isDirectVideoUrl(raw)) {
-      videoUrl = raw;
-      contentType = "youtube";
-      break;
-    }
-  }
-
-  // Firebase ID for secured content (UUID style)
-  const firebaseId = (vi._fs_id ?? deVi.fs_id ?? "") as string;
-  const hasFirebaseId = typeof firebaseId === "string" && firebaseId.trim().length > 10;
-
-  if (!videoUrl && hasFirebaseId) {
+  // If we have a Firebase ID, use the proper streaming endpoint
+  if (hasFirebaseId) {
     contentType = "firebase";
+  } else {
+    // Collect all possible video URL fields from both old and new schema
+    const rawVideoUrls = [
+      vi._vi_url,
+      deVi.url,
+      vi.url,
+      json._vi_url,
+      json.video_url,
+      vi.video_url,
+      deVi._vi_url,
+      deVi.video_url,
+      json._de?._vi?._vi_url,
+      json._de?._vi?.url,
+    ].filter(Boolean) as string[];
+
+    for (const raw of rawVideoUrls) {
+      if (!raw || typeof raw !== "string") continue;
+      if (isFirebaseStorageUrl(raw)) {
+        // Fallback: proxy Firebase Storage URL (no Range support)
+        videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
+        contentType = "youtube"; // treat as playable video
+        break;
+      }
+      if (isYouTubeUrl(raw)) {
+        videoUrl = raw;
+        contentType = "youtube";
+        break;
+      }
+      if (isDirectVideoUrl(raw)) {
+        videoUrl = raw;
+        contentType = "youtube";
+        break;
+      }
+    }
   }
 
   // PDF handling — only trust real PDF-looking resources.

@@ -506,7 +506,7 @@ router.get("/notes", async (req: Request, res: Response): Promise<void> => {
 // GET /api/sessions — queries t_ch (real video sessions) with pagination + sort
 router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { courseId, limit: limitParam, type, sort, page: pageParam } = req.query;
+    const { courseId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
     const cond: Record<string, unknown> = {};
     if (courseId) cond.co_refid = courseId;
 
@@ -521,6 +521,14 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
     }
 
     let sessions = (data as Record<string, unknown>[]).map(parseChapter);
+
+    // Filter by search query if provided
+    if (search && typeof search === "string" && search.trim().length > 0) {
+      const searchLower = search.trim().toLowerCase();
+      sessions = sessions.filter((s) => 
+        String(s.title ?? "").toLowerCase().includes(searchLower)
+      );
+    }
 
     // Filter by content type if requested
     if (type === "video") {

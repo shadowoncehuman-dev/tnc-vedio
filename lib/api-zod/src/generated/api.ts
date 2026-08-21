@@ -38,7 +38,8 @@ export const GetCoursesResponse = zod.array(GetCoursesResponseItem)
 export const ListSessionsQueryParams = zod.object({
   "courseId": zod.coerce.string().optional(),
   "type": zod.coerce.string().optional(),
-  "limit": zod.coerce.number().optional()
+  "limit": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional()
 })
 
 export const ListSessionsResponseItem = zod.object({

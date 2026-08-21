@@ -241,6 +241,7 @@ export type ListSessionsParams = {
 courseId?: string;
 type?: string;
 limit?: number;
+search?: string;
 };
 
 export type ListQuizzesParams = {

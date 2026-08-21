@@ -1,10 +1,10 @@
 import { useParams, Link } from "wouter";
 import { useGetCourses, useListSessions, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, getListSessionsQueryKey } from "@/lib/api-client";
-import { Video, FileText, Lock, PlayCircle, ChevronRight, ArrowLeft, ShieldAlert, AlertCircle, Heart } from "lucide-react";
+import { Video, FileText, Lock, PlayCircle, ChevronRight, ArrowLeft, ShieldAlert, AlertCircle, Heart, Search, X } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toggleFavorite, isFavorite } from "@/lib/streak";
 
 export default function CourseDetailPage() {
@@ -12,6 +12,7 @@ export default function CourseDetailPage() {
   const user = getUser();
   const [activeTab, setActiveTab] = useState<"all" | "video" | "pdf">("all");
   const [isFav, setIsFav] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (courseId) setIsFav(isFavorite("courses", courseId));
@@ -21,8 +22,8 @@ export default function CourseDetailPage() {
   const course = (Array.isArray(courses) ? courses : []).find((c) => c.rowId === courseId);
 
   const { data: sessionsRaw, isLoading: sessionsLoading } = useListSessions(
-    { courseId },
-    { query: { queryKey: getListSessionsQueryKey({ courseId }) } }
+    { courseId, search: searchQuery || undefined },
+    { query: { queryKey: getListSessionsQueryKey({ courseId, search: searchQuery || undefined }) } }
   );
 
   const { data: promo } = useGetPromoStatus();
@@ -51,6 +52,10 @@ export default function CourseDetailPage() {
     if (!courseId) return;
     const next = toggleFavorite("courses", courseId);
     setIsFav(next);
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
   }
 
   if (coursesLoading) {
@@ -150,6 +155,32 @@ export default function CourseDetailPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="bg-white border-b sticky top-28 z-30">
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search lectures, PDFs..."
+              className="w-full pl-10 pr-10 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              data-testid="search-input"
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                data-testid="clear-search"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

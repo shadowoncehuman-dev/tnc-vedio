@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useAdminLogin, useGetAdminStats, useTogglePromo, useGetPromoStatus, getGetPromoStatusQueryKey } from "@/lib/api-client";
-import { Shield, Users, BookOpen, Video, ShoppingCart, LogOut, ToggleLeft, ToggleRight, RefreshCw, Calendar, Plus, Minus, Clock } from "lucide-react";
+import { useAdminLogin, useGetAdminStats, useGetAdminUsers, useTogglePromo, useGetPromoStatus, getGetPromoStatusQueryKey } from "@/lib/api-client";
+import { Shield, Users, BookOpen, Video, ShoppingCart, LogOut, ToggleLeft, ToggleRight, RefreshCw, Calendar, Plus, Minus, Clock, Search, Eye, EyeOff } from "lucide-react";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,50 @@ import { Link } from "wouter";
 
 const QUICK_DAYS = [7, 14, 30, 60, 90];
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+function StudentsDirectory() {
+  const [search, setSearch] = useState("");
+  const [showCredentialNotice, setShowCredentialNotice] = useState(false);
+  const { data, isLoading, refetch } = useGetAdminUsers(
+    { page: 1, limit: 100, search: search || undefined },
+    { request: { headers: { "x-admin-token": getAdminToken() ?? "" } } },
+  );
+
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Registered Students</h2>
+          <p className="text-sm text-gray-500">{data?.total ?? 0} app accounts</p>
+        </div>
+        <button onClick={() => refetch()} className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1.5">
+          <RefreshCw size={13} /> Refresh
+        </button>
+      </div>
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, mobile, email, college..." className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">College / State</th><th className="py-2">Credentials</th></tr></thead>
+          <tbody>
+            {isLoading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">Loading students...</td></tr> : data?.users.map((student) => (
+              <tr key={student.id} className="border-b last:border-0 align-top">
+                <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.userId}</div></td>
+                <td className="py-3 pr-4 text-gray-600">{student.mobile}</td>
+                <td className="py-3 pr-4 text-gray-600">{student.email || "-"}</td>
+                <td className="py-3 pr-4 text-gray-600">{student.college || "-"}<div className="text-xs text-gray-400">{student.state || ""}</div></td>
+                <td className="py-3"><button onClick={() => setShowCredentialNotice((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50" title="Password status">{showCredentialNotice ? <EyeOff size={13} /> : <Eye size={13} />} {showCredentialNotice ? "Unavailable" : "Reveal status"}</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showCredentialNotice && <p className="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">Passwords cannot be revealed. They are stored as one-way hashes. Reset the student password through a dedicated reset flow instead.</p>}
+    </section>
+  );
+}
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const adminLogin = useAdminLogin();
@@ -294,6 +338,8 @@ function AdminDashboard() {
 
             {/* Free Period Manager */}
             <PromoManager />
+
+            <StudentsDirectory />
 
         </>
       </div>

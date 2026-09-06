@@ -11,6 +11,17 @@ export interface AppUser {
   token: string;
 }
 
+export interface AdminAppUser {
+  id: number;
+  userId: string;
+  name: string;
+  mobile: string;
+  email: string | null;
+  college: string | null;
+  state: string | null;
+  createdAt: string;
+}
+
 interface AppUserRow {
   id: number;
   user_id: string;
@@ -53,6 +64,22 @@ export async function findAppUser(mobile: string): Promise<AppUserRow | undefine
     `app_users?mobile=eq.${encodeURIComponent(mobile)}&limit=1`,
   );
   return rows[0];
+}
+
+export async function listAppUsers(): Promise<AdminAppUser[]> {
+  const rows = await supabaseRequest<AppUserRow[]>(
+    "app_users?select=id,user_id,name,mobile,email,college,state,created_at&order=created_at.desc",
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    mobile: row.mobile,
+    email: row.email,
+    college: row.college,
+    state: row.state,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function authenticateAppUser(mobile: string, password: string): Promise<AppUser | null> {

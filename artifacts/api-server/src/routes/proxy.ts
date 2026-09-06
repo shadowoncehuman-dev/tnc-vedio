@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { getCachedFirebaseVideoUrl, isFirebaseConfigured, isUserAuthConfigured, isServiceAccountConfigured, signInWithEmailPassword, streamFirebaseVideo } from "../lib/firebase-rest";
-import { authenticateAppUser, createAppUser, findAppUser } from "../lib/app-user-store";
+import { authenticateAppUser, createAppUser, findAppUser, listAppUsers } from "../lib/app-user-store";
 import { getStats as getBotStats } from "../lib/user-store";
 
 const router = Router();
@@ -10,6 +10,15 @@ const CRM_BASE = "https://crm.tncnursing.in";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 const PROMO_EXPIRES_DAYS = 30;
+
+function requireAdmin(req: Request, res: Response): boolean {
+  const token = req.header("x-admin-token") ?? req.query.adminToken;
+  if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
 
 if (!ADMIN_PASSWORD) {
   console.warn("[proxy] ADMIN_PASSWORD env var not set — admin login disabled");
@@ -757,6 +766,32 @@ router.post("/admin/login", (req: Request, res: Response): void => {
     return;
   }
   res.json({ token: ADMIN_TOKEN, message: "Admin logged in successfully" });
+});
+
+// GET /api/admin/users — List registered app students without credential data
+router.get("/admin/users", async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const search = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25));
+    const allUsers = await listAppUsers();
+    const filtered = search
+      ? allUsers.filter((user) => [user.name, user.mobile, user.email, user.college, user.state]
+        .some((value) => value?.toLowerCase().includes(search)))
+      : allUsers;
+    const start = (page - 1) * limit;
+    res.json({
+      users: filtered.slice(start, start + limit),
+      total: filtered.length,
+      page,
+      limit,
+      credentials: { revealable: false, reason: "Passwords are stored as one-way hashes and cannot be recovered." },
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch app students");
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
 });
 
 // GET /api/admin/stats

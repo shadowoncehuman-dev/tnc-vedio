@@ -150,6 +150,10 @@ export interface AdminUsersResponse {
   total: number;
   page: number;
   limit: number;
+  credentials?: {
+    revealable: boolean;
+    reason: string;
+  };
 }
 
 export interface PromoStatus {

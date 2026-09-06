@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdminLogin, useGetAdminStats, useGetAdminUsers, useTogglePromo, useGetPromoStatus, getGetPromoStatusQueryKey } from "@/lib/api-client";
 import { Shield, Users, BookOpen, Video, ShoppingCart, LogOut, ToggleLeft, ToggleRight, RefreshCw, Calendar, Plus, Minus, Clock, Search, Eye, EyeOff } from "lucide-react";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/auth";
@@ -18,11 +18,39 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
 function StudentsDirectory() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showCredentialNotice, setShowCredentialNotice] = useState(false);
-  const { data, isLoading, refetch } = useGetAdminUsers(
-    { page: 1, limit: 100, search: search || undefined },
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Immediate search on change for better UX
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 200); // Fast 200ms debounce for quick response
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, isLoading, error, refetch } = useGetAdminUsers(
+    { page: 1, limit: 100, search: debouncedSearch || undefined },
     { request: { headers: { "x-admin-token": getAdminToken() ?? "" } } },
   );
+
+  // Set initial loading state
+  useEffect(() => {
+    if (!isLoading) {
+      setIsInitialLoading(false);
+    }
+  }, [isLoading]);
+
+  // Handle retry on error
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    refetch();
+  };
+
+  // Show loading only on initial load
+  const showLoading = isInitialLoading && !data;
 
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -31,30 +59,81 @@ function StudentsDirectory() {
           <h2 className="text-lg font-black text-gray-900">Registered Students</h2>
           <p className="text-sm text-gray-500">{data?.total ?? 0} app accounts</p>
         </div>
-        <button onClick={() => refetch()} className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1.5">
-          <RefreshCw size={13} /> Refresh
+        <button 
+          onClick={() => refetch()} 
+          disabled={isLoading}
+          className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
       <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, mobile, email, college..." className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+        <input 
+          value={search} 
+          onChange={(event) => setSearch(event.target.value)} 
+          placeholder="Search name, mobile, email, college..." 
+          className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" 
+        />
+        {search !== debouncedSearch && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          </div>
+        )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">College / State</th><th className="py-2">Credentials</th></tr></thead>
-          <tbody>
-            {isLoading ? <tr><td colSpan={5} className="py-8 text-center text-gray-400">Loading students...</td></tr> : data?.users.map((student) => (
-              <tr key={student.id} className="border-b last:border-0 align-top">
-                <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.userId}</div></td>
-                <td className="py-3 pr-4 text-gray-600">{student.mobile}</td>
-                <td className="py-3 pr-4 text-gray-600">{student.email || "-"}</td>
-                <td className="py-3 pr-4 text-gray-600">{student.college || "-"}<div className="text-xs text-gray-400">{student.state || ""}</div></td>
-                <td className="py-3"><button onClick={() => setShowCredentialNotice((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50" title="Password status">{showCredentialNotice ? <EyeOff size={13} /> : <Eye size={13} />} {showCredentialNotice ? "Unavailable" : "Reveal status"}</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <p className="text-sm text-red-800">Failed to load students. Please try again.</p>
+          <button 
+            onClick={handleRetry}
+            className="mt-2 text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
+          >
+            Retry ({retryCount > 0 ? `Attempt ${retryCount}` : 'Once'})
+          </button>
+        </div>
+      )}
+      
+      {/* Loading State */}
+      {showLoading && (
+        <div className="py-8 text-center">
+          <div className="inline-flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" />
+            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '0.2s' }} />
+            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '0.4s' }} />
+          </div>
+          <p className="mt-2 text-sm text-gray-500">Loading students...</p>
+        </div>
+      )}
+      
+      {/* Empty State */}
+      {!showLoading && !isLoading && data?.users?.length === 0 && (
+        <div className="py-8 text-center text-gray-500">
+          <p>No students found.</p>
+          {search && <p className="text-xs mt-1">Try adjusting your search terms</p>}
+        </div>
+      )}
+      
+      {/* Table */}
+      {!showLoading && !isLoading && data?.users?.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">College / State</th><th className="py-2">Credentials</th></tr></thead>
+            <tbody>
+              {data.users.map((student) => (
+                <tr key={student.id} className="border-b last:border-0 align-top">
+                  <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.userId}</div></td>
+                  <td className="py-3 pr-4 text-gray-600">{student.mobile}</td>
+                  <td className="py-3 pr-4 text-gray-600">{student.email || "-"}</td>
+                  <td className="py-3 pr-4 text-gray-600">{student.college || "-"}<div className="text-xs text-gray-400">{student.state || ""}</div></td>
+                  <td className="py-3"><button onClick={() => setShowCredentialNotice((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50" title="Password status">{showCredentialNotice ? <EyeOff size={13} /> : <Eye size={13} />} {showCredentialNotice ? "Unavailable" : "Reveal status"}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {showCredentialNotice && <p className="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">Passwords cannot be revealed. They are stored as one-way hashes. Reset the student password through a dedicated reset flow instead.</p>}
     </section>
   );

@@ -1007,6 +1007,11 @@ router.get("/firebase-stream/:fsId", async (req: Request, res: Response): Promis
       res.status(503).json({ error: "Firebase auth failed — check credentials" });
     } else if (msg === "not_found") {
       res.status(404).json({ error: "Video not found in Firebase Storage" });
+    } else if (msg.startsWith("upstream_")) {
+      const status = Number(msg.slice("upstream_".length));
+      res.status(Number.isInteger(status) && status >= 400 && status < 600 ? status : 502).json({
+        error: "Firebase video request failed",
+      });
     } else {
       logger.error({ err, fsId }, "Firebase stream failed");
       res.status(500).json({ error: "Stream failed" });

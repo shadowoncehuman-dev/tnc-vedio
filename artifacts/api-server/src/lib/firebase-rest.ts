@@ -9,8 +9,19 @@ import { createSign } from "crypto";
 import type { Response } from "express";
 
 const FIREBASE_API_KEY = "AIzaSyD8LTjLjo89KpUzvHLpjwODOGj9UKb2H8c";
-const BUCKET = "shivangi-nursing-academy-818e5.appspot.com";
+const DEFAULT_BUCKETS = [
+  "shivangi-nursing-academy-818e5.appspot.com",
+  "team-nursing-classes-818e5.appspot.com",
+];
 const VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
+
+function getStorageBuckets(): string[] {
+  const configured = (process.env.FIREBASE_STORAGE_BUCKET ?? process.env.FIREBASE_BUCKET ?? "")
+    .split(",")
+    .map((bucket) => bucket.trim())
+    .filter(Boolean);
+  return [...new Set([...configured, ...DEFAULT_BUCKETS])];
+}
 
 // ─────────────────────────────────────────────
 // USER EMAIL / PASSWORD AUTH (primary method)
@@ -164,11 +175,11 @@ async function getAuthToken(): Promise<string | null> {
 // ─────────────────────────────────────────────
 // PATH RESOLUTION + STREAMING
 // ─────────────────────────────────────────────
-const pathCache = new Map<string, { path: string; expiresAt: number }>();
+const pathCache = new Map<string, { bucket: string; path: string; expiresAt: number }>();
 
-async function findStoragePath(fsId: string, token: string): Promise<string | null> {
+async function findStoragePath(fsId: string, token: string): Promise<{ bucket: string; path: string } | null> {
   const cached = pathCache.get(fsId);
-  if (cached && cached.expiresAt > Date.now()) return cached.path;
+  if (cached && cached.expiresAt > Date.now()) return cached;
 
   const candidates = [
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}`),
@@ -177,13 +188,16 @@ async function findStoragePath(fsId: string, token: string): Promise<string | nu
     `${fsId}.mp4`,
   ];
 
-  for (const path of candidates) {
-    const encoded = encodeURIComponent(path);
-    const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (resp.ok) {
-      pathCache.set(fsId, { path, expiresAt: Date.now() + 60 * 60 * 1000 });
-      return path;
+  for (const bucket of getStorageBuckets()) {
+    for (const path of candidates) {
+      const encoded = encodeURIComponent(path);
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        const result = { bucket, path };
+        pathCache.set(fsId, { ...result, expiresAt: Date.now() + 60 * 60 * 1000 });
+        return result;
+      }
     }
   }
   return null;
@@ -201,23 +215,30 @@ export async function streamFirebaseVideo(
   const token = await getAuthToken();
   if (!token) throw new Error("no_auth");
 
-  const path = await findStoragePath(fsId, token);
-  if (!path) throw new Error("not_found");
+  const storageFile = await findStoragePath(fsId, token);
+  if (!storageFile) throw new Error("not_found");
 
-  const encoded = encodeURIComponent(path);
-  const storageUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media`;
+  const encoded = encodeURIComponent(storageFile.path);
+  const storageUrl = `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}?alt=media`;
 
   const fetchHeaders: Record<string, string> = { Authorization: `Bearer ${token}` };
   if (rangeHeader) fetchHeaders.Range = rangeHeader;
 
   const fbResp = await fetch(storageUrl, { headers: fetchHeaders });
 
+  if (!fbResp.ok) {
+    throw new Error(`upstream_${fbResp.status}`);
+  }
+
   // Forward relevant headers
   res.status(fbResp.status);
-  for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+  for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
     const v = fbResp.headers.get(h);
     if (v) res.setHeader(h, v);
   }
+  if (!res.getHeader("content-type")) res.setHeader("content-type", "video/mp4");
+  res.setHeader("accept-ranges", "bytes");
+  res.setHeader("access-control-allow-origin", "*");
   res.setHeader("cache-control", "private, max-age=3600");
 
   if (!fbResp.body) {
@@ -243,16 +264,16 @@ export async function getCachedFirebaseVideoUrl(
   if (!isServiceAccountConfigured()) return null;
   const token = await getServiceAccountToken();
   if (!token) return null;
-  const path = await findStoragePath(fsId, token);
-  if (!path) return null;
-  const encoded = encodeURIComponent(path);
+  const storageFile = await findStoragePath(fsId, token);
+  if (!storageFile) return null;
+  const encoded = encodeURIComponent(storageFile.path);
   const metaResp = await fetch(
-    `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`,
+    `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!metaResp.ok) return null;
   const meta = (await metaResp.json()) as { downloadTokens?: string };
   if (!meta.downloadTokens) return null;
-  const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media&token=${meta.downloadTokens}`;
-  return { url, path };
+  const url = `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}?alt=media&token=${meta.downloadTokens}`;
+  return { url, path: storageFile.path };
 }

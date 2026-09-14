@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useGetSliders, useGetCourses } from "@/lib/api-client";
-import { BookOpen, Video, FileText, Award, ChevronLeft, ChevronRight, ArrowRight, CheckCircle, Star, Flame, Brain, Zap } from "lucide-react";
+import { Video, FileText, Award, ChevronLeft, ChevronRight, ArrowRight, CheckCircle, Star, Flame, Brain, Zap, Sparkles, Stethoscope } from "lucide-react";
 import { motion } from "framer-motion";
 import Layout from "@/components/Layout";
 import { getStreakData } from "@/lib/streak";
@@ -33,7 +33,7 @@ function SliderCarousel() {
   if (!items.length) return null;
 
   return (
-    <div className="relative w-full overflow-hidden bg-black" style={{ aspectRatio: "16/6" }}>
+    <div className="relative mx-auto mt-2 w-full max-w-6xl overflow-hidden border-y border-[hsl(var(--border))] bg-black" style={{ aspectRatio: "16/6" }}>
       {items.map((slide, i) => (
         <div
           key={slide.rowId}
@@ -152,22 +152,22 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 300 }}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100 group"
+      className="group overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[4px_4px_0_hsl(165_48%_24%_/_0.12)] transition-shadow hover:shadow-[7px_7px_0_hsl(71_68%_53%_/_0.7)]"
     >
-      <div className="h-40 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 relative">
+      <div className="relative h-44 overflow-hidden bg-[hsl(var(--muted))]">
         <img
           src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
           alt={course.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         {isNew && (
-          <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+          <div className="absolute left-3 top-3 flex items-center gap-0.5 bg-[hsl(var(--secondary))] px-2 py-0.5 text-[10px] font-bold text-[hsl(var(--foreground))]">
             <Zap size={9} /> NEW
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-      <div className="p-4">
+      <div className="p-5">
         <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 mb-1">{course.name}</h3>
         {course.description && course.description !== "" && course.description !== "Description" && (
           <p className="text-xs text-gray-500 line-clamp-2 mb-3">{course.description}</p>
@@ -175,13 +175,13 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
         <div className="flex gap-2 mt-3">
           <Link
             href={`/courses/${course.rowId}`}
-            className="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold text-white tnc-brand-gradient hover:opacity-90 transition-opacity"
+            className="flex-1 text-center py-2 px-3 text-xs font-semibold text-white tnc-brand-gradient hover:opacity-90 transition-opacity"
           >
             View Course
           </Link>
           <Link
             href="/buy"
-            className="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors"
+            className="flex-1 text-center py-2 px-3 text-xs font-semibold border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors"
           >
             Enroll
           </Link>
@@ -210,47 +210,63 @@ export default function HomePage() {
       <SliderCarousel />
       <StreakWidget />
 
-      {/* Hero CTA */}
-      <section className="tnc-hero-gradient text-white py-12 px-4">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* Editorial hero */}
+      <section className="tnc-hero-gradient overflow-hidden px-4 py-14 text-white md:py-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-block px-3 py-1 rounded-full bg-white/20 text-xs font-semibold mb-4 tracking-wide uppercase">
-              India's Premier Nursing Exam Prep
+            <div className="mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[hsl(var(--secondary))]">
+              <Sparkles size={14} /> The focused study desk
             </div>
-            <h1 className="text-3xl md:text-5xl font-black leading-tight mb-4">
-              Crack NORCET & AIIMS<br />
-              <span className="text-yellow-300">with Confidence</span>
+            <h1 className="display-serif max-w-3xl text-5xl leading-[0.98] md:text-7xl">
+              Make your next<br />
+              <span className="text-[hsl(var(--secondary))]">attempt count.</span>
             </h1>
-            <p className="text-base md:text-lg text-white/80 max-w-2xl mx-auto mb-8 leading-relaxed">
-              Join thousands of nursing students who cleared government nursing exams with TNC's structured video lectures, e-notes, and expert guidance.
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-white/70 md:text-lg">
+              A calmer, sharper way to prepare for NORCET, AIIMS, CHO and the exams that move your nursing career forward.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/courses"
-                className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-white text-blue-700 font-bold text-sm hover:bg-blue-50 transition-colors shadow-lg"
+                className="flex items-center justify-center gap-2 bg-[hsl(var(--secondary))] px-7 py-3.5 text-sm font-bold text-[hsl(var(--foreground))] shadow-[5px_5px_0_hsl(10_78%_61%)] transition-transform hover:-translate-y-1"
                 data-testid="hero-btn-courses"
               >
-                Explore Courses <ArrowRight size={16} />
+                Start with courses <ArrowRight size={16} />
               </Link>
               <Link
                 href="/register"
-                className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-yellow-400 text-gray-900 font-bold text-sm hover:bg-yellow-300 transition-colors shadow-lg"
+                className="flex items-center justify-center gap-2 border border-white/30 px-7 py-3.5 text-sm font-bold text-white hover:bg-white/10 transition-colors"
                 data-testid="hero-btn-register"
               >
-                Join Free Now <ArrowRight size={16} />
+                Meet the community <ArrowRight size={16} />
               </Link>
+            </div>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="relative mx-auto w-full max-w-md">
+            <div className="absolute -right-3 -top-3 h-full w-full border border-[hsl(var(--secondary))]" />
+            <div className="relative bg-[hsl(var(--card))] p-3 text-[hsl(var(--foreground))] editorial-shadow">
+              <div className="relative h-64 overflow-hidden bg-[hsl(var(--muted))] md:h-80">
+                <img src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg" alt="Nursing study material" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--secondary))]"><Stethoscope size={14} /> Exam room ready</div>
+                  <p className="display-serif text-2xl">Study less scattered. Remember more.</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between px-1 pt-4 text-xs font-semibold uppercase tracking-[0.14em] text-[hsl(var(--muted-foreground))]">
+                <span>Video / notes / tests</span><span>01 — 03</span>
+              </div>
             </div>
           </motion.div>
         </div>
       </section>
 
       {/* Stats */}
-      <section className="bg-white border-b py-8">
-        <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-6">
+      <section className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] py-7">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-0 divide-x divide-[hsl(var(--border))] px-4 md:grid-cols-4">
           {[
             { value: "1,50,000+", label: "Students Enrolled" },
             { value: `${courseList.length || "90"}+`, label: "Courses" },
@@ -258,32 +274,32 @@ export default function HomePage() {
             { value: "6,700+", label: "Mock Tests" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <div className="text-2xl md:text-3xl font-black text-blue-700">{stat.value}</div>
-              <div className="text-xs text-gray-500 font-medium mt-1">{stat.label}</div>
+              <div className="text-2xl font-black text-[hsl(var(--primary))] md:text-3xl">{stat.value}</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[hsl(var(--muted-foreground))]">{stat.label}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* Features */}
-      <section className="py-12 px-4" style={{ backgroundColor: "hsl(var(--background))" }}>
+      <section className="px-4 py-16" style={{ backgroundColor: "hsl(var(--background))" }}>
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Why Choose TNC?</h2>
-            <p className="text-gray-500 text-sm">Everything you need to crack your nursing exam</p>
+          <div className="mb-8 flex flex-col justify-between gap-3 border-b border-[hsl(var(--border))] pb-5 sm:flex-row sm:items-end">
+            <div><p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[hsl(var(--accent))]">Your toolkit</p><h2 className="display-serif text-4xl text-[hsl(var(--foreground))]">Built for the long haul.</h2></div>
+            <p className="max-w-xs text-sm text-[hsl(var(--muted-foreground))]">Everything you need to keep your preparation moving, even on ordinary days.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map(({ icon: Icon, title, desc }) => (
               <motion.div
                 key={title}
                 whileHover={{ y: -4 }}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center"
+                className="border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 text-left transition-transform hover:-translate-y-1"
               >
-                <div className="w-12 h-12 rounded-xl tnc-brand-gradient flex items-center justify-center mx-auto mb-3">
-                  <Icon size={22} className="text-white" />
+                <div className="mb-8 flex h-11 w-11 items-center justify-center bg-[hsl(var(--primary))]">
+                  <Icon size={21} className="text-[hsl(var(--secondary))]" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm mb-1">{title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                <h3 className="mb-1 text-sm font-bold text-[hsl(var(--foreground))]">{title}</h3>
+                <p className="text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{desc}</p>
               </motion.div>
             ))}
           </div>
@@ -291,16 +307,16 @@ export default function HomePage() {
       </section>
 
       {/* Courses Preview — newest first, skip loading flicker */}
-      <section className="py-12 px-4 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+      <section className="bg-[hsl(var(--card))] px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-7 flex items-end justify-between border-b border-[hsl(var(--border))] pb-5">
             <div>
-              <h2 className="text-2xl font-black text-gray-900">Latest Courses</h2>
-              <p className="text-sm text-gray-500 mt-1">Freshest batches added recently</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[hsl(var(--accent))]">The library</p>
+              <h2 className="display-serif text-4xl text-[hsl(var(--foreground))]">Choose your next win.</h2>
             </div>
             <Link
               href="/courses"
-              className="flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
+              className="hidden items-center gap-1 text-sm font-semibold text-[hsl(var(--primary))] hover:underline sm:flex"
               data-testid="link-all-courses"
             >
               View All <ArrowRight size={14} />
@@ -310,7 +326,7 @@ export default function HomePage() {
           {coursesLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+                  <div key={i} className="overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
                   <div className="h-40 skeleton" />
                   <div className="p-4 space-y-2">
                     <div className="h-4 skeleton rounded w-3/4" />
@@ -331,15 +347,14 @@ export default function HomePage() {
       </section>
 
       {/* Exam coverage */}
-      <section className="py-12 px-4 tnc-hero-gradient text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-black mb-2">Exams We Cover</h2>
-          <p className="text-white/70 text-sm mb-8">Comprehensive preparation for all major nursing recruitment exams</p>
-          <div className="flex flex-wrap justify-center gap-3">
+      <section className="tnc-hero-gradient px-4 py-16 text-white">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 max-w-xl"><p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[hsl(var(--secondary))]">Know the route</p><h2 className="display-serif text-4xl">One desk. Many destinations.</h2><p className="mt-3 text-sm leading-relaxed text-white/65">Build a focused plan for the exam that matters to you, then keep showing up.</p></div>
+          <div className="flex flex-wrap gap-3">
             {exams.map((exam) => (
               <div
                 key={exam}
-                className="px-4 py-2 rounded-full bg-white/15 border border-white/20 text-sm font-semibold backdrop-blur-sm"
+                className="border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold backdrop-blur-sm transition-colors hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]"
               >
                 {exam}
               </div>
@@ -349,23 +364,23 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-12 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-black text-gray-900 text-center mb-8">Toppers Speak</h2>
+      <section className="bg-[hsl(var(--background))] px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 flex items-end justify-between border-b border-[hsl(var(--border))] pb-5"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[hsl(var(--accent))]">Field notes</p><h2 className="display-serif text-4xl text-[hsl(var(--foreground))]">Proof from the desk.</h2></div><span className="hidden text-xs font-bold uppercase tracking-[0.16em] text-[hsl(var(--muted-foreground))] sm:block">Student voices / 2023—24</span></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
               { name: "Priya S.", exam: "AIIMS Nursing 2023", quote: "TNC's structured notes and video lectures helped me score top rank in AIIMS Nursing exam." },
               { name: "Rahul M.", exam: "NORCET 2023", quote: "The faculty explains complex topics in simple terms. Best investment for nursing exam prep!" },
               { name: "Anjali K.", exam: "CHO 2023", quote: "E-notes are brilliant — concise, well-organized, and exam-focused. Cleared CHO in first attempt!" },
             ].map((t) => (
-              <div key={t.name} className="bg-blue-50 rounded-2xl p-5 border border-blue-100">
+              <div key={t.name} className="border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
                 <div className="flex gap-0.5 mb-3">
                   {[1,2,3,4,5].map((s) => <Star key={s} size={14} className="fill-yellow-400 text-yellow-400" />)}
                 </div>
-                <p className="text-sm text-gray-700 italic leading-relaxed mb-3">"{t.quote}"</p>
+                <p className="display-serif mb-3 text-lg leading-relaxed text-[hsl(var(--foreground))]">"{t.quote}"</p>
                 <div>
                   <div className="text-sm font-bold text-gray-900">{t.name}</div>
-                  <div className="text-xs text-blue-600 font-medium">{t.exam}</div>
+                  <div className="text-xs font-medium text-[hsl(var(--accent))]">{t.exam}</div>
                 </div>
               </div>
             ))}

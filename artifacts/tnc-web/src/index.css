@@ -80,48 +80,48 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  /* TNC Brand — Deep Navy + Warm Amber */
-  --background: 220 30% 97%;
-  --foreground: 220 40% 10%;
+  /* TNC Brand — warm paper, ink, lime and coral */
+  --background: 42 33% 95%;
+  --foreground: 165 22% 12%;
 
   --card: 0 0% 100%;
   --card-foreground: 220 40% 10%;
-  --card-border: 220 20% 88%;
+  --card-border: 42 18% 82%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 220 40% 10%;
-  --popover-border: 220 20% 88%;
+  --popover-foreground: 165 22% 12%;
+  --popover-border: 42 18% 82%;
 
   /* Deep indigo-blue — brand color */
-  --primary: 226 71% 40%;
+  --primary: 165 48% 24%;
   --primary-foreground: 0 0% 100%;
-  --primary-border: 226px 71% 35%;
+  --primary-border: 165px 48% 20%;
 
-  --secondary: 38 92% 50%;
-  --secondary-foreground: 220 40% 10%;
-  --secondary-border: 38px 92% 45%;
+  --secondary: 71 68% 53%;
+  --secondary-foreground: 165 22% 12%;
+  --secondary-border: 71px 68% 48%;
 
-  --muted: 220 20% 93%;
-  --muted-foreground: 220 15% 46%;
-  --muted-border: 220 20% 88%;
+  --muted: 40 20% 89%;
+  --muted-foreground: 165 10% 42%;
+  --muted-border: 42 18% 82%;
 
-  --accent: 38 92% 50%;
-  --accent-foreground: 220 40% 10%;
-  --accent-border: 38px 92% 45%;
+  --accent: 10 78% 61%;
+  --accent-foreground: 165 22% 12%;
+  --accent-border: 10px 78% 56%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --destructive-border: 0px 84% 55%;
 
-  --border: 220 20% 88%;
-  --input: 220 20% 88%;
-  --ring: 226 71% 40%;
+  --border: 42 18% 82%;
+  --input: 42 18% 82%;
+  --ring: 165 48% 24%;
 
-  --chart-1: 226 71% 40%;
-  --chart-2: 38 92% 50%;
-  --chart-3: 160 60% 45%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 0 84% 60%;
+  --chart-1: 165 48% 24%;
+  --chart-2: 71 68% 53%;
+  --chart-3: 10 78% 61%;
+  --chart-4: 32 82% 61%;
+  --chart-5: 0 72% 56%;
 
   --sidebar: 220 40% 12%;
   --sidebar-foreground: 0 0% 95%;
@@ -216,21 +216,36 @@ button, a, input, select, textarea {
 }
 
 .tnc-brand-gradient {
-  background: linear-gradient(135deg, hsl(226 71% 35%), hsl(240 70% 50%));
+  background: linear-gradient(135deg, hsl(165 48% 22%), hsl(171 45% 31%));
 }
 
 .tnc-amber-gradient {
-  background: linear-gradient(135deg, hsl(38 92% 50%), hsl(28 95% 55%));
+  background: linear-gradient(135deg, hsl(10 78% 61%), hsl(28 82% 61%));
 }
 
 .tnc-hero-gradient {
-  background: linear-gradient(160deg, hsl(226 71% 22%) 0%, hsl(240 70% 35%) 50%, hsl(260 60% 40%) 100%);
+  background: linear-gradient(135deg, hsl(165 48% 18%) 0%, hsl(171 45% 27%) 58%, hsl(32 48% 25%) 100%);
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.study-grid {
+  background-color: hsl(var(--background));
+  background-image: linear-gradient(rgba(28, 53, 48, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(28, 53, 48, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.editorial-shadow {
+  box-shadow: 10px 10px 0 hsl(71 68% 53% / 0.35);
+}
+
+.display-serif {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0;
 }
 
 .dark .glass-card {

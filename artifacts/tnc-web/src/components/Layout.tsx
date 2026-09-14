@@ -67,22 +67,22 @@ function VisitorGreeting() {
 
   if (!name) {
     return (
-      <section className="mx-auto my-4 flex max-w-5xl flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between" data-testid="visitor-name-prompt">
+      <section className="mx-auto my-5 flex max-w-6xl flex-col gap-3 border-y border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-4 sm:flex-row sm:items-center sm:justify-between" data-testid="visitor-name-prompt">
         <div>
           <p className="font-semibold text-gray-900">What should we call you?</p>
           <p className="text-xs text-gray-500">We use your name to personalize your study welcome.</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
           <input value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveName(); }} placeholder="Your name" className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 sm:w-48" />
-          <button onClick={saveName} disabled={!draftName.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Continue</button>
+          <button onClick={saveName} disabled={!draftName.trim()} className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Continue</button>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="mx-auto my-4 flex max-w-5xl items-center gap-3 px-4" data-testid="visitor-greeting">
-      {waifuUrl && <img src={waifuUrl} alt="Friendly study companion" className="h-14 w-14 rounded-xl object-cover" loading="lazy" />}
+    <section className="mx-auto my-5 flex max-w-6xl items-center gap-3 px-4" data-testid="visitor-greeting">
+      {waifuUrl && <img src={waifuUrl} alt="Friendly study companion" className="h-12 w-12 rounded-full border-2 border-[hsl(var(--secondary))] object-cover" loading="lazy" />}
       <div>
         <p className="text-lg font-black text-gray-900">{getGreeting()}, {name}.</p>
         <p className="text-sm text-gray-500">Ready for a focused study session?</p>
@@ -128,7 +128,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "hsl(var(--background))" }}>
       {/* Desktop Top Nav */}
-      <header className="tnc-brand-gradient shadow-lg sticky top-0 z-50 hidden md:block">
+      <header className="sticky top-0 z-50 hidden border-b border-white/10 bg-[hsl(var(--primary))] shadow-lg md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -150,8 +150,8 @@ export default function Layout({ children }: LayoutProps) {
                 }}
               />
               <div className="text-white">
-                <div className="font-bold text-base leading-none">TNC Nursing</div>
-                <div className="text-xs text-white/70 font-medium">Classes</div>
+                <div className="font-black text-base leading-none tracking-tight">TNC / NURSING</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-white/60">Study desk</div>
               </div>
             </Link>
 
@@ -223,7 +223,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Mobile Top Bar */}
-      <header className="tnc-brand-gradient shadow-lg sticky top-0 z-50 md:hidden">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[hsl(var(--primary))] shadow-lg md:hidden">
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
             <img
@@ -232,7 +232,7 @@ export default function Layout({ children }: LayoutProps) {
               className="w-8 h-8 rounded-lg object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
-            <span className="text-white font-bold text-sm">TNC Nursing</span>
+            <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>
           <div className="flex items-center gap-2">
             <button
@@ -331,13 +331,14 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main className="study-grid flex-1">
         <VisitorGreeting />
         {children}
         {showAds && (
           <div className="pb-8 pt-2">
             <div className="hidden lg:block"><AdSlot size="728x90" /></div>
-            <div className="lg:hidden"><AdSlot size="320x50" /></div>
+            <div className="hidden md:block lg:hidden"><AdSlot size="468x60" /></div>
+            <div className="md:hidden"><AdSlot size="320x50" /></div>
           </div>
         )}
       </main>

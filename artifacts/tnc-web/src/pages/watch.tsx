@@ -318,7 +318,9 @@ export default function WatchPage() {
 
   useEffect(() => {
     const telegramUser = getTelegramUser();
-    if (!telegramUser || !isUnlocked || !sessionId) return;
+    const visitorId = localStorage.getItem("tnc_visitor_id");
+    const visitorName = user?.name || localStorage.getItem("tnc_visitor_name");
+    if ((!telegramUser && (!visitorId || !visitorName)) || !isUnlocked || !sessionId) return;
     let lastSent = Date.now();
     const timer = window.setInterval(() => {
       const elapsed = Math.round((Date.now() - lastSent) / 1000);
@@ -327,11 +329,15 @@ export default function WatchPage() {
       fetch(`${BASE}/api/bot/study/heartbeat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramId: telegramUser.id, sessionId, seconds: elapsed }),
+        body: JSON.stringify({
+          ...(telegramUser ? { telegramId: telegramUser.id } : { visitorId, visitorName }),
+          sessionId,
+          seconds: elapsed,
+        }),
       }).catch(() => {});
     }, 30_000);
     return () => window.clearInterval(timer);
-  }, [isUnlocked, sessionId]);
+  }, [isUnlocked, sessionId, user?.name]);
 
   if (isLoading) {
     return (

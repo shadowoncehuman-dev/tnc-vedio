@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle } from "lucide-react";
-import { isAdmin, clearAdminToken } from "@/lib/auth";
+import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
+import { getTelegramUser } from "@/lib/telegram";
+import { AdSlot } from "@/components/Ads";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,12 +26,77 @@ const navItems: NavItem[] = [
 ];
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const VISITOR_NAME_KEY = "tnc_visitor_name";
+const VISITOR_ID_KEY = "tnc_visitor_id";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Good night";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Good night";
+}
+
+function VisitorGreeting() {
+  const user = getUser();
+  const telegramUser = getTelegramUser();
+  const [name, setName] = useState(user?.name || telegramUser?.first_name || localStorage.getItem(VISITOR_NAME_KEY) || "");
+  const [draftName, setDraftName] = useState(name);
+  const [waifuUrl, setWaifuUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!localStorage.getItem(VISITOR_ID_KEY)) {
+      localStorage.setItem(VISITOR_ID_KEY, crypto.randomUUID());
+    }
+    if (name) localStorage.setItem(VISITOR_NAME_KEY, name);
+
+    fetch("https://api.waifu.im/images?IncludedTags=waifu&IsNsfw=False&PageSize=1", { headers: { Accept: "application/json" } })
+      .then((response) => response.ok ? response.json() as Promise<{ items?: Array<{ url?: string }> }> : null)
+      .then((data) => {
+        const url = data?.items?.[0]?.url;
+        if (url?.startsWith("https://")) setWaifuUrl(url);
+      })
+      .catch(() => undefined);
+  }, [name]);
+
+  function saveName() {
+    const value = draftName.trim().slice(0, 80);
+    if (value) setName(value);
+  }
+
+  if (!name) {
+    return (
+      <section className="mx-auto my-4 flex max-w-5xl flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between" data-testid="visitor-name-prompt">
+        <div>
+          <p className="font-semibold text-gray-900">What should we call you?</p>
+          <p className="text-xs text-gray-500">We use your name to personalize your study welcome.</p>
+        </div>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <input value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveName(); }} placeholder="Your name" className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 sm:w-48" />
+          <button onClick={saveName} disabled={!draftName.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Continue</button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto my-4 flex max-w-5xl items-center gap-3 px-4" data-testid="visitor-greeting">
+      {waifuUrl && <img src={waifuUrl} alt="Friendly study companion" className="h-14 w-14 rounded-xl object-cover" loading="lazy" />}
+      <div>
+        <p className="text-lg font-black text-gray-900">{getGreeting()}, {name}.</p>
+        <p className="text-sm text-gray-500">Ready for a focused study session?</p>
+      </div>
+    </section>
+  );
+}
 
 export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const admin = isAdmin();
+  const showAds = location !== "/" && !/^\/(watch|videos|pdf|quiz)(\/|$)/.test(location);
 
   useEffect(() => {
     const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -265,7 +332,14 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1">
+        <VisitorGreeting />
         {children}
+        {showAds && (
+          <div className="pb-8 pt-2">
+            <div className="hidden lg:block"><AdSlot size="728x90" /></div>
+            <div className="lg:hidden"><AdSlot size="320x50" /></div>
+          </div>
+        )}
       </main>
 
       {/* Mobile Bottom Tabs */}

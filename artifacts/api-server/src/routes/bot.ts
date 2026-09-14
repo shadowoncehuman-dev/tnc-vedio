@@ -9,7 +9,7 @@ import {
   checkBannedStore,
   getStats,
 } from "../lib/user-store";
-import { recordStudyHeartbeat, getLeaderboard } from "../lib/study-store";
+import { recordStudyHeartbeat, recordWebsiteStudyHeartbeat, getLeaderboard } from "../lib/study-store";
 
 const router = Router();
 
@@ -182,16 +182,22 @@ router.post("/users/:telegramId/unban", async (req: Request, res: Response): Pro
 
 router.post("/study/heartbeat", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { telegramId, sessionId, seconds } = req.body as {
+    const { telegramId, visitorId, visitorName, sessionId, seconds } = req.body as {
       telegramId?: number;
+      visitorId?: string;
+      visitorName?: string;
       sessionId?: string;
       seconds?: number;
     };
-    if (!telegramId || !sessionId || !Number.isFinite(seconds)) {
-      res.status(400).json({ error: "telegramId, sessionId, and seconds are required" });
+    if (!sessionId || !Number.isFinite(seconds) || (!telegramId && (!visitorId || !visitorName))) {
+      res.status(400).json({ error: "A Telegram ID or website visitor ID/name, session ID, and seconds are required" });
       return;
     }
-    await recordStudyHeartbeat({ telegramId, sessionId, seconds: seconds! });
+    if (telegramId) {
+      await recordStudyHeartbeat({ telegramId, sessionId, seconds: seconds! });
+    } else {
+      await recordWebsiteStudyHeartbeat({ visitorId: visitorId!, visitorName: visitorName!, sessionId, seconds: seconds! });
+    }
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "Failed to record study time");

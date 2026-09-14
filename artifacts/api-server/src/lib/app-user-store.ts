@@ -13,7 +13,7 @@ export interface AppUser {
 
 export interface AdminAppUser {
   id: number;
-  userId: string;
+  rowId: string;
   name: string;
   mobile: string;
   email: string | null;
@@ -67,12 +67,21 @@ export async function findAppUser(mobile: string): Promise<AppUserRow | undefine
 }
 
 export async function listAppUsers(): Promise<AdminAppUser[]> {
-  const rows = await supabaseRequest<AppUserRow[]>(
-    "app_users?select=id,user_id,name,mobile,email,college,state,created_at&order=created_at.desc",
-  );
+  let rows: AppUserRow[];
+  try {
+    rows = await supabaseRequest<AppUserRow[]>(
+      "app_users?select=id,user_id,name,mobile,email,college,state,created_at&order=created_at.desc",
+    );
+  } catch (error) {
+    // Older app_users tables may predate created_at; keep the directory usable.
+    if (!(error instanceof Error) || !error.message.includes("created_at")) throw error;
+    rows = await supabaseRequest<AppUserRow[]>(
+      "app_users?select=id,user_id,name,mobile,email,college,state&order=id.desc",
+    );
+  }
   return rows.map((row) => ({
     id: row.id,
-    userId: row.user_id,
+    rowId: row.user_id,
     name: row.name,
     mobile: row.mobile,
     email: row.email,

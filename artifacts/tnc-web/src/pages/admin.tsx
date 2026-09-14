@@ -51,6 +51,7 @@ function StudentsDirectory() {
 
   // Show loading only on initial load
   const showLoading = isInitialLoading && !data;
+  const students = data?.users ?? [];
 
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -108,7 +109,7 @@ function StudentsDirectory() {
       )}
       
       {/* Empty State */}
-      {!showLoading && !isLoading && data?.users?.length === 0 && (
+      {!showLoading && !isLoading && students.length === 0 && (
         <div className="py-8 text-center text-gray-500">
           <p>No students found.</p>
           {search && <p className="text-xs mt-1">Try adjusting your search terms</p>}
@@ -116,14 +117,14 @@ function StudentsDirectory() {
       )}
       
       {/* Table */}
-      {!showLoading && !isLoading && data?.users?.length > 0 && (
+      {!showLoading && !isLoading && students.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">College / State</th><th className="py-2">Credentials</th></tr></thead>
             <tbody>
-              {data.users.map((student) => (
+              {students.map((student) => (
                 <tr key={student.id} className="border-b last:border-0 align-top">
-                  <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.userId}</div></td>
+                  <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.rowId}</div></td>
                   <td className="py-3 pr-4 text-gray-600">{student.mobile}</td>
                   <td className="py-3 pr-4 text-gray-600">{student.email || "-"}</td>
                   <td className="py-3 pr-4 text-gray-600">{student.college || "-"}<div className="text-xs text-gray-400">{student.state || ""}</div></td>

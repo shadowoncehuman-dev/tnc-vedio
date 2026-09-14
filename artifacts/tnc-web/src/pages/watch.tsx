@@ -213,7 +213,7 @@ function FsVideoPlayer({ firebaseId, title }: { firebaseId: string; title: strin
         title={title}
         loading="eager"
         data-testid="fs-video-player"
-        referrerPolicy="origin"
+        referrerPolicy="no-referrer-when-downgrade"
       />
     </div>
   );

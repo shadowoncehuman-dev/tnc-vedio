@@ -201,9 +201,22 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
   );
 }
 
-function FsVideoPlayer({ firebaseId, sessionId }: { firebaseId: string; sessionId: string }) {
-  const streamUrl = getApiUrl(`/api/firebase-stream/${encodeURIComponent(firebaseId)}`);
-  return <HlsPlayer src={streamUrl} sessionId={sessionId} />;
+function FsVideoPlayer({ firebaseId, title }: { firebaseId: string; title: string }) {
+  const playerUrl = `https://videoplay.tncnursing.in/videos/fs/index.html?${encodeURIComponent(firebaseId)}`;
+  return (
+    <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-xl" style={{ paddingTop: "56.25%" }}>
+      <iframe
+        src={playerUrl}
+        className="absolute inset-0 w-full h-full"
+        allowFullScreen
+        allow="autoplay; fullscreen; picture-in-picture"
+        title={title}
+        loading="eager"
+        data-testid="fs-video-player"
+        referrerPolicy="origin"
+      />
+    </div>
+  );
 }
 
 function NoContentCard({ title }: { title: string }) {
@@ -378,7 +391,7 @@ export default function WatchPage() {
                 ) : contentType === "pdf" && session.pdfUrl ? (
                   <PdfViewer url={session.pdfUrl} title={session.title} />
                 ) : contentType === "firebase" && firebaseId ? (
-                  <FsVideoPlayer firebaseId={firebaseId} sessionId={sessionId ?? ""} />
+                  <FsVideoPlayer firebaseId={firebaseId} title={session.title} />
                 ) : (
                   <NoContentCard title={session.title} />
                 )}

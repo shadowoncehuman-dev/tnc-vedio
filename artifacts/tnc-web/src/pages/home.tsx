@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
-import { useGetSliders, useGetCourses, useGetPromoStatus } from "@/lib/api-client";
+import { useGetSliders, useGetCourses } from "@/lib/api-client";
 import { BookOpen, Video, FileText, Award, ChevronLeft, ChevronRight, ArrowRight, CheckCircle, Star, Flame, Brain, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import Layout from "@/components/Layout";
@@ -69,21 +69,6 @@ function SliderCarousel() {
             ))}
           </div>
         </>
-      )}
-    </div>
-  );
-}
-
-function PromoBar() {
-  const { data: promo } = useGetPromoStatus();
-  if (!promo?.enabled) return null;
-  return (
-    <div className="tnc-amber-gradient text-white text-center py-2.5 px-4 text-sm font-semibold tracking-wide" data-testid="promo-bar">
-      🎉 All content unlocked — Promotional mode active!
-      {promo.expiresAt && (
-        <span className="ml-2 text-xs font-normal opacity-90">
-          (Expires {new Date(promo.expiresAt).toLocaleDateString("en-IN")})
-        </span>
       )}
     </div>
   );
@@ -222,7 +207,6 @@ export default function HomePage() {
 
   return (
     <Layout>
-      <PromoBar />
       <SliderCarousel />
       <StreakWidget />
 

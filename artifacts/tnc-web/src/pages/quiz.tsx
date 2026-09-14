@@ -4,6 +4,7 @@ import { useListQuizzes, getListQuizzesQueryKey } from "@/lib/api-client";
 import { Brain, Clock, Target, ChevronRight, TrendingUp, Award, Search, AlertCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { motion } from "framer-motion";
+import StudyEmptyState from "@/components/StudyEmptyState";
 
 function formatDuration(mins: string) {
   const n = parseInt(mins);
@@ -101,10 +102,7 @@ export default function QuizPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <AlertCircle size={48} className="mx-auto text-gray-200 mb-3" />
-            <p className="text-gray-500 font-medium">{search ? "No quizzes match your search" : "No quizzes available"}</p>
-          </div>
+          <StudyEmptyState compact title={search ? "No quizzes match your search" : "No quizzes available"} />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

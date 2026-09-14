@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
 import { toggleFavorite, isFavorite } from "@/lib/streak";
+import StudyEmptyState from "@/components/StudyEmptyState";
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -193,11 +194,7 @@ export default function CourseDetailPage() {
             ))}
           </div>
         ) : displaySessions.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            <AlertCircle size={48} className="mx-auto text-gray-200 mb-3" />
-            <p className="font-medium">No {activeTab === "video" ? "video" : activeTab === "pdf" ? "PDF" : ""} content available yet</p>
-            <p className="text-sm mt-1">Check back soon</p>
-          </div>
+          <StudyEmptyState title={`No ${activeTab === "video" ? "video" : activeTab === "pdf" ? "PDF" : "course"} content available yet`} />
         ) : (
           <div className="space-y-2">
             <h2 className="text-base font-black text-gray-900 mb-4">

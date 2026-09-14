@@ -136,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
               <img
                 src={`${BASE}/logo.svg`}
                 alt="TNC"
-                className="w-10 h-10 rounded-xl object-contain"
+                className="w-10 h-10 object-contain"
                 onError={(e) => {
                   const t = e.target as HTMLImageElement;
                   t.style.display = "none";
@@ -229,7 +229,7 @@ export default function Layout({ children }: LayoutProps) {
             <img
               src={`${BASE}/logo.svg`}
               alt="TNC"
-              className="w-8 h-8 rounded-lg object-contain"
+              className="w-8 h-8 object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>

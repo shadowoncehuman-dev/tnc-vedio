@@ -29,6 +29,21 @@ const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 const VISITOR_NAME_KEY = "tnc_visitor_name";
 const VISITOR_ID_KEY = "tnc_visitor_id";
 
+function ResponsiveAd() {
+  const [size, setSize] = useState<"468x60" | "320x50" | "728x90">("320x50");
+
+  useEffect(() => {
+    const sync = () => {
+      setSize(window.matchMedia("(min-width: 1024px)").matches ? "728x90" : window.matchMedia("(min-width: 768px)").matches ? "468x60" : "320x50");
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, []);
+
+  return <AdSlot size={size} />;
+}
+
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 5) return "Good night";
@@ -336,9 +351,7 @@ export default function Layout({ children }: LayoutProps) {
         {children}
         {showAds && (
           <div className="pb-8 pt-2">
-            <div className="hidden lg:block"><AdSlot size="728x90" /></div>
-            <div className="hidden md:block lg:hidden"><AdSlot size="468x60" /></div>
-            <div className="md:hidden"><AdSlot size="320x50" /></div>
+            <ResponsiveAd />
           </div>
         )}
       </main>

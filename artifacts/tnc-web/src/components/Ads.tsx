@@ -6,6 +6,8 @@ declare global {
   }
 }
 
+let adScriptQueue = Promise.resolve();
+
 type AdSize = "468x60" | "300x250" | "160x300" | "160x600" | "320x50" | "728x90" | "native";
 
 const AD_CONFIG: Record<AdSize, { key?: string; width: number; height: number }> = {
@@ -39,19 +41,34 @@ export function AdSlot({ size, className = "" }: { size: AdSize; className?: str
       return () => container.replaceChildren();
     }
 
-    window.atOptions = {
-      key: config.key,
-      format: "iframe",
-      height: config.height,
-      width: config.width,
-      params: {},
+    let active = true;
+    const loadAd = () => new Promise<void>((resolve) => {
+      if (!active) {
+        resolve();
+        return;
+      }
+      window.atOptions = {
+        key: config.key,
+        format: "iframe",
+        height: config.height,
+        width: config.width,
+        params: {},
+      };
+      const script = document.createElement("script");
+      script.src = `https://welcomingexpulsion.com/${config.key}/invoke.js`;
+      script.async = false;
+      script.dataset.adSize = size;
+      script.onload = () => resolve();
+      script.onerror = () => resolve();
+      container.appendChild(script);
+    });
+
+    const queuedAd = adScriptQueue.then(loadAd, loadAd);
+    adScriptQueue = queuedAd.catch(() => undefined);
+    return () => {
+      active = false;
+      container.replaceChildren();
     };
-    const script = document.createElement("script");
-    script.src = `https://welcomingexpulsion.com/${config.key}/invoke.js`;
-    script.async = false;
-    script.dataset.adSize = size;
-    container.appendChild(script);
-    return () => container.replaceChildren();
   }, [config, size]);
 
   return (

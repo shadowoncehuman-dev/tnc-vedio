@@ -53,6 +53,12 @@ export function SecurityGuard() {
         return false;
       }
 
+      // Allow Ctrl+F5 for page refresh
+      if (e.ctrlKey && e.key === "F5") {
+        // Allow page refresh - don't prevent default
+        return;
+      }
+
       // Disable right-click context menu
       if (e.button === 2) {
         e.preventDefault();

@@ -48,14 +48,15 @@ export function AdSlot({ size, className = "" }: { size: AdSize; className?: str
     };
     const script = document.createElement("script");
     script.src = `https://welcomingexpulsion.com/${config.key}/invoke.js`;
-    script.async = true;
+    script.async = false;
+    script.dataset.adSize = size;
     container.appendChild(script);
     return () => container.replaceChildren();
   }, [config, size]);
 
   return (
     <div className={`flex justify-center overflow-hidden ${className}`} aria-label="Advertisement">
-      <div ref={containerRef} style={{ width: config.width, minHeight: config.height }} />
+      <div ref={containerRef} style={{ width: config.width, minHeight: config.height, maxWidth: "100%" }} />
     </div>
   );
 }

@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "artifacts/api-server/src/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "nodeVersion": "18.x",
+        "zeroConfig": false
+      }
+    },
+    {
+      "src": "artifacts/tnc-web/vite.config.ts",
+      "use": "@vercel/vite",
+      "config": {
+        "nodeVersion": "18.x",
+        "zeroConfig": false
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "artifacts/api-server/src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "artifacts/tnc-web/dist/public/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "3000",
+    "BASE_PATH": "/"
+  },
+  "functions": {
+    "src/api-server/**/*.ts": {
+      "memory": "1024",
+      "timeout": "30"
+    }
+  }
+}

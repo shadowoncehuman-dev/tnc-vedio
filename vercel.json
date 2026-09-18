@@ -6,7 +6,9 @@
       "use": "@vercel/node",
       "config": {
         "nodeVersion": "18.x",
-        "zeroConfig": false
+        "zeroConfig": false,
+        "memory": "1024",
+        "maxDuration": "30"
       }
     },
     {
@@ -32,11 +34,5 @@
     "NODE_ENV": "production",
     "PORT": "3000",
     "BASE_PATH": "/"
-  },
-  "functions": {
-    "src/api-server/**/*.ts": {
-      "memory": "1024",
-      "timeout": "30"
-    }
   }
 }

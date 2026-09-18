@@ -28483,6 +28483,39 @@ var init_logger = __esm({
   }
 });
 
+// src/lib/supabase-rest.ts
+function isSupabaseConfigured() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+}
+async function supabaseRequest(path2, init = {}) {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  }
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path2.replace(/^\/+/, "")}`, {
+    ...init,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      ...init.headers ?? {}
+    }
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Supabase REST ${response.status}: ${detail.slice(0, 300)}`);
+  }
+  if (response.status === 204) return void 0;
+  return response.json();
+}
+var SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY;
+var init_supabase_rest = __esm({
+  "src/lib/supabase-rest.ts"() {
+    "use strict";
+    SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/+$/, "");
+    SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+});
+
 // ../../node_modules/.pnpm/@supabase+supabase-js@2.112.2/node_modules/@supabase/supabase-js/dist/tracingRegistry.mjs
 function getTraceContextExtractor() {
   return globalThis[EXTRACTOR_KEY];
@@ -59399,7 +59432,8 @@ var require_lib6 = __commonJS({
 var study_store_exports = {};
 __export(study_store_exports, {
   getLeaderboard: () => getLeaderboard,
-  recordStudyHeartbeat: () => recordStudyHeartbeat
+  recordStudyHeartbeat: () => recordStudyHeartbeat,
+  recordWebsiteStudyHeartbeat: () => recordWebsiteStudyHeartbeat
 });
 function ensureClient2() {
   if (!isSupabaseConfigured2()) throw new Error("Supabase not configured on server");
@@ -59416,12 +59450,27 @@ async function recordStudyHeartbeat(input) {
   });
   if (error) throw error;
 }
+async function recordWebsiteStudyHeartbeat(input) {
+  const seconds = Math.min(Math.max(Math.round(input.seconds), 0), 300);
+  const visitorId = input.visitorId.trim().slice(0, 120);
+  const visitorName = input.visitorName.trim().slice(0, 80);
+  if (!seconds || !visitorId || !visitorName || !input.sessionId) return;
+  await supabaseRequest("rpc/record_website_study_time", {
+    method: "POST",
+    body: JSON.stringify({
+      p_visitor_id: visitorId,
+      p_visitor_name: visitorName,
+      p_session_id: input.sessionId,
+      p_seconds: seconds
+    })
+  });
+}
 async function getLeaderboard(limit = 20) {
   const rows = await supabaseRequest(
-    `study_leaderboard?select=telegram_id,first_name,username,seconds,sessions&limit=${Math.min(limit, 100)}`
+    `study_leaderboard?select=participant_id,first_name,username,seconds,sessions&order=seconds.desc&limit=${Math.min(limit, 100)}`
   );
   return rows.map((row) => ({
-    telegramId: String(row.telegram_id),
+    telegramId: String(row.participant_id),
     firstName: row.first_name,
     username: row.username,
     seconds: Number(row.seconds),
@@ -59432,6 +59481,7 @@ var init_study_store = __esm({
   "src/lib/study-store.ts"() {
     "use strict";
     init_supabase_server();
+    init_supabase_rest();
   }
 });
 
@@ -63596,8 +63646,15 @@ init_logger();
 // src/lib/firebase-rest.ts
 import { createSign } from "crypto";
 var FIREBASE_API_KEY = "AIzaSyD8LTjLjo89KpUzvHLpjwODOGj9UKb2H8c";
-var BUCKET = "shivangi-nursing-academy-818e5.appspot.com";
+var DEFAULT_BUCKETS = [
+  "shivangi-nursing-academy-818e5.appspot.com",
+  "team-nursing-classes-818e5.appspot.com"
+];
 var VIDEO_PATHS = ["videos", "chapters", "lectures", "sessions", "media", "stream"];
+function getStorageBuckets() {
+  const configured = (process.env.FIREBASE_STORAGE_BUCKET ?? process.env.FIREBASE_BUCKET ?? "").split(",").map((bucket) => bucket.trim()).filter(Boolean);
+  return [.../* @__PURE__ */ new Set([...configured, ...DEFAULT_BUCKETS])];
+}
 var userToken = null;
 function isUserAuthConfigured() {
   const email = process.env.FIREBASE_USER_EMAIL ?? "";
@@ -63711,20 +63768,23 @@ async function getAuthToken() {
 var pathCache = /* @__PURE__ */ new Map();
 async function findStoragePath(fsId, token) {
   const cached = pathCache.get(fsId);
-  if (cached && cached.expiresAt > Date.now()) return cached.path;
+  if (cached && cached.expiresAt > Date.now()) return cached;
   const candidates = [
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}`),
     ...VIDEO_PATHS.map((p) => `${p}/${fsId}.mp4`),
     fsId,
     `${fsId}.mp4`
   ];
-  for (const path2 of candidates) {
-    const encoded = encodeURIComponent(path2);
-    const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (resp.ok) {
-      pathCache.set(fsId, { path: path2, expiresAt: Date.now() + 60 * 60 * 1e3 });
-      return path2;
+  for (const bucket of getStorageBuckets()) {
+    for (const path2 of candidates) {
+      const encoded = encodeURIComponent(path2);
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        const result = { bucket, path: path2 };
+        pathCache.set(fsId, { ...result, expiresAt: Date.now() + 60 * 60 * 1e3 });
+        return result;
+      }
     }
   }
   return null;
@@ -63732,18 +63792,24 @@ async function findStoragePath(fsId, token) {
 async function streamFirebaseVideo(fsId, rangeHeader, res) {
   const token = await getAuthToken();
   if (!token) throw new Error("no_auth");
-  const path2 = await findStoragePath(fsId, token);
-  if (!path2) throw new Error("not_found");
-  const encoded = encodeURIComponent(path2);
-  const storageUrl = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media`;
+  const storageFile = await findStoragePath(fsId, token);
+  if (!storageFile) throw new Error("not_found");
+  const encoded = encodeURIComponent(storageFile.path);
+  const storageUrl = `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}?alt=media`;
   const fetchHeaders = { Authorization: `Bearer ${token}` };
   if (rangeHeader) fetchHeaders.Range = rangeHeader;
   const fbResp = await fetch(storageUrl, { headers: fetchHeaders });
+  if (!fbResp.ok) {
+    throw new Error(`upstream_${fbResp.status}`);
+  }
   res.status(fbResp.status);
-  for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+  for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
     const v = fbResp.headers.get(h);
     if (v) res.setHeader(h, v);
   }
+  if (!res.getHeader("content-type")) res.setHeader("content-type", "video/mp4");
+  res.setHeader("accept-ranges", "bytes");
+  res.setHeader("access-control-allow-origin", "*");
   res.setHeader("cache-control", "private, max-age=3600");
   if (!fbResp.body) {
     res.end();
@@ -63758,51 +63824,23 @@ async function getCachedFirebaseVideoUrl(fsId) {
   if (!isServiceAccountConfigured()) return null;
   const token = await getServiceAccountToken();
   if (!token) return null;
-  const path2 = await findStoragePath(fsId, token);
-  if (!path2) return null;
-  const encoded = encodeURIComponent(path2);
+  const storageFile = await findStoragePath(fsId, token);
+  if (!storageFile) return null;
+  const encoded = encodeURIComponent(storageFile.path);
   const metaResp = await fetch(
-    `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}`,
+    `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!metaResp.ok) return null;
   const meta = await metaResp.json();
   if (!meta.downloadTokens) return null;
-  const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encoded}?alt=media&token=${meta.downloadTokens}`;
-  return { url, path: path2 };
+  const url = `https://firebasestorage.googleapis.com/v0/b/${storageFile.bucket}/o/${encoded}?alt=media&token=${meta.downloadTokens}`;
+  return { url, path: storageFile.path };
 }
 
 // src/lib/app-user-store.ts
+init_supabase_rest();
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
-
-// src/lib/supabase-rest.ts
-var SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/+$/, "");
-var SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-function isSupabaseConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
-}
-async function supabaseRequest2(path2, init = {}) {
-  if (!isSupabaseConfigured()) {
-    throw new Error("Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
-  }
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path2.replace(/^\/+/, "")}`, {
-    ...init,
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-      ...init.headers ?? {}
-    }
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Supabase REST ${response.status}: ${detail.slice(0, 300)}`);
-  }
-  if (response.status === 204) return void 0;
-  return response.json();
-}
-
-// src/lib/app-user-store.ts
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
   const digest = createHash("sha256").update(`${salt}:${password}`).digest("hex");
@@ -63826,10 +63864,33 @@ function toAuthResponse(row) {
   };
 }
 async function findAppUser(mobile) {
-  const rows = await supabaseRequest2(
+  const rows = await supabaseRequest(
     `app_users?mobile=eq.${encodeURIComponent(mobile)}&limit=1`
   );
   return rows[0];
+}
+async function listAppUsers() {
+  let rows;
+  try {
+    rows = await supabaseRequest(
+      "app_users?select=id,user_id,name,mobile,email,college,state,created_at&order=created_at.desc"
+    );
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("created_at")) throw error;
+    rows = await supabaseRequest(
+      "app_users?select=id,user_id,name,mobile,email,college,state&order=id.desc"
+    );
+  }
+  return rows.map((row) => ({
+    id: row.id,
+    rowId: row.user_id,
+    name: row.name,
+    mobile: row.mobile,
+    email: row.email,
+    college: row.college,
+    state: row.state,
+    createdAt: row.created_at
+  }));
 }
 async function authenticateAppUser(mobile, password) {
   const user = await findAppUser(mobile);
@@ -63837,7 +63898,7 @@ async function authenticateAppUser(mobile, password) {
 }
 async function createAppUser(input) {
   const userId = `${Date.now()}_${randomBytes(3).toString("hex").toUpperCase()}`;
-  const rows = await supabaseRequest2("app_users", {
+  const rows = await supabaseRequest("app_users", {
     method: "POST",
     headers: { Prefer: "return=representation" },
     body: JSON.stringify({
@@ -63861,6 +63922,14 @@ var CRM_BASE = "https://crm.tncnursing.in";
 var ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 var ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 var PROMO_EXPIRES_DAYS = 30;
+function requireAdmin(req, res) {
+  const token = req.header("x-admin-token") ?? req.query.adminToken;
+  if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
 if (!ADMIN_PASSWORD) {
   console.warn("[proxy] ADMIN_PASSWORD env var not set \u2014 admin login disabled");
 }
@@ -64469,6 +64538,27 @@ router2.post("/admin/login", (req, res) => {
   }
   res.json({ token: ADMIN_TOKEN, message: "Admin logged in successfully" });
 });
+router2.get("/admin/users", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const search = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25));
+    const allUsers = await listAppUsers();
+    const filtered = search ? allUsers.filter((user) => [user.name, user.mobile, user.email, user.college, user.state].some((value) => value?.toLowerCase().includes(search))) : allUsers;
+    const start = (page - 1) * limit;
+    res.json({
+      users: filtered.slice(start, start + limit),
+      total: filtered.length,
+      page,
+      limit,
+      credentials: { revealable: false, reason: "Passwords are stored as one-way hashes and cannot be recovered." }
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch app students");
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
+});
 router2.get("/admin/stats", async (_req, res) => {
   try {
     const [coursesData, purchasesData, botStats] = await Promise.all([
@@ -64647,6 +64737,11 @@ router2.get("/firebase-stream/:fsId", async (req, res) => {
       res.status(503).json({ error: "Firebase auth failed \u2014 check credentials" });
     } else if (msg === "not_found") {
       res.status(404).json({ error: "Video not found in Firebase Storage" });
+    } else if (msg.startsWith("upstream_")) {
+      const status = Number(msg.slice("upstream_".length));
+      res.status(Number.isInteger(status) && status >= 400 && status < 600 ? status : 502).json({
+        error: "Firebase video request failed"
+      });
     } else {
       logger.error({ err, fsId }, "Firebase stream failed");
       res.status(500).json({ error: "Stream failed" });
@@ -65111,7 +65206,7 @@ init_user_store();
 init_study_store();
 var router3 = (0, import_express3.Router)();
 var ADMIN_TOKEN2 = process.env.ADMIN_TOKEN ?? "";
-function requireAdmin(req, res) {
+function requireAdmin2(req, res) {
   const token = req.headers["x-admin-token"] ?? req.query.adminToken;
   if (token !== ADMIN_TOKEN2) {
     res.status(401).json({ error: "Unauthorized" });
@@ -65198,7 +65293,7 @@ router3.get("/check-ban/:telegramId", async (req, res) => {
   }
 });
 router3.get("/users", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin2(req, res)) return;
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
@@ -65210,11 +65305,11 @@ router3.get("/users", async (req, res) => {
   }
 });
 router3.get("/stats", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin2(req, res)) return;
   res.json(await getStats());
 });
 router3.post("/users/:telegramId/ban", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin2(req, res)) return;
   try {
     const { reason } = req.body;
     const ok = await banUser(
@@ -65232,7 +65327,7 @@ router3.post("/users/:telegramId/ban", async (req, res) => {
   }
 });
 router3.post("/users/:telegramId/unban", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin2(req, res)) return;
   try {
     const ok = await unbanUser(String(req.params.telegramId));
     if (ok) {
@@ -65247,12 +65342,16 @@ router3.post("/users/:telegramId/unban", async (req, res) => {
 });
 router3.post("/study/heartbeat", async (req, res) => {
   try {
-    const { telegramId, sessionId, seconds } = req.body;
-    if (!telegramId || !sessionId || !Number.isFinite(seconds)) {
-      res.status(400).json({ error: "telegramId, sessionId, and seconds are required" });
+    const { telegramId, visitorId, visitorName, sessionId, seconds } = req.body;
+    if (!sessionId || !Number.isFinite(seconds) || !telegramId && (!visitorId || !visitorName)) {
+      res.status(400).json({ error: "A Telegram ID or website visitor ID/name, session ID, and seconds are required" });
       return;
     }
-    await recordStudyHeartbeat({ telegramId, sessionId, seconds });
+    if (telegramId) {
+      await recordStudyHeartbeat({ telegramId, sessionId, seconds });
+    } else {
+      await recordWebsiteStudyHeartbeat({ visitorId, visitorName, sessionId, seconds });
+    }
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "Failed to record study time");

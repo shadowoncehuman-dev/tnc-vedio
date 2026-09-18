@@ -1,0 +1,45 @@
+{
+  "name": "TNC Nursing Classes",
+  "short_name": "TNC Nursing",
+  "description": "India's #1 nursing exam preparation platform. Video lectures, e-notes, mock tests for NORCET, AIIMS, CHO, ESIC.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e3a8a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "medical"],
+  "lang": "en-IN",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Courses",
+      "short_name": "Courses",
+      "description": "Browse all nursing courses",
+      "url": "/courses",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "E-Notes",
+      "short_name": "E-Notes",
+      "description": "Access PDF study notes",
+      "url": "/enotes",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Test Series",
+      "short_name": "Tests",
+      "description": "Practice mock tests",
+      "url": "/quiz",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    }
+  ]
+}

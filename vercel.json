@@ -27,13 +27,12 @@
     },
     {
       "src": "/(.*)",
-      "dest": "artifacts/tnc-web/dist/public/index.html"
+      "dest": "public/index.html"
     }
   ],
   "env": {
     "NODE_ENV": "production",
     "PORT": "3000",
     "BASE_PATH": "/"
-  },
-  "outputDirectory": "artifacts/tnc-web/dist/public"
+  }
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="42" fill="#173B35"/>
+  <path d="M100 22 166 100 100 178 34 100 100 22Z" fill="#D9E95B"/>
+  <path d="M100 42 148 100 100 158 52 100 100 42Z" fill="#173B35"/>
+  <path d="M92 59h16v33h33v16h-33v33H92v-33H59V92h33V59Z" fill="#fffdf6"/>
+  <circle cx="100" cy="100" r="8" fill="#F47D68"/>
+  <text x="100" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="800" fill="#173B35" letter-spacing="3">TNC</text>
+</svg>

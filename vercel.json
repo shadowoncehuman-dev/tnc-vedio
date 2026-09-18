@@ -34,5 +34,6 @@
     "NODE_ENV": "production",
     "PORT": "3000",
     "BASE_PATH": "/"
-  }
+  },
+  "outputDirectory": "artifacts/tnc-web/dist/public"
 }

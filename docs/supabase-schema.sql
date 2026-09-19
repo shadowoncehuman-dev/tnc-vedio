@@ -79,3 +79,21 @@ revoke all on table public.study_leaderboard from anon, authenticated;
 
 comment on table public.bot_users is 'Telegram Mini App users; accessed server-side with SUPABASE_SERVICE_ROLE_KEY';
 comment on table public.app_users is 'TNC app login users; accessed server-side with SUPABASE_SERVICE_ROLE_KEY';
+
+create table if not exists public.broadcast_logs (
+  id bigserial primary key,
+  admin_telegram_id bigint not null,
+  content_type text not null,
+  message_text text,
+  media_url text,
+  media_type text,
+  total_recipients integer not null default 0,
+  successful_sends integer not null default 0,
+  failed_sends integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.broadcast_logs enable row level security;
+revoke all on table public.broadcast_logs from anon, authenticated;
+
+comment on table public.broadcast_logs is 'Logs of Telegram bot broadcasts sent by admins';

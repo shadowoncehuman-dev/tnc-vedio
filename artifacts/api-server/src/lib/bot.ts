@@ -120,20 +120,17 @@ export function initBot(): Telegraf | null {
     }
   });
 
-  // /admin — open admin panel (admin only)
+  // /admin — list users (admin only)
   tgBot.command("admin", async (ctx) => {
     try {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-      if (!appUrl) { await ctx.reply("❌ RENDER_URL not set"); return; }
-      logger.info({ admin: ctx.from?.id }, "/admin opened");
-      await ctx.reply("🛡️ *Admin Panel*", {
-        parse_mode: "MarkdownV2",
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "🛡️ Open Admin Panel", web_app: { url: `${appUrl}/admin` } },
-          ]],
-        },
-      } as Parameters<typeof ctx.reply>[1]);
+      logger.info({ admin: ctx.from?.id }, "/admin requested");
+      const users = await getAllUsers();
+      if (!users.length) { await ctx.reply("No users yet"); return; }
+      const list = users.map((u) =>
+        `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
+      ).join("\n");
+      await ctx.reply(`👥 *Recent Users:*\n\n${list}`, { parse_mode: "MarkdownV2" });
     } catch (err) {
       logger.error({ err }, "Error in /admin handler");
       try { await ctx.reply("⚠️ Admin command failed"); } catch {}
@@ -294,13 +291,36 @@ export function initBot(): Telegraf | null {
     // Log broadcast in Supabase (best-effort)
     try {
       const { logBroadcast } = await import("./broadcast");
-      const contentType = "mixed";
+      let contentType = "text";
       let messageText: string | null = null;
-      if ("text" in ctx.message && typeof ctx.message.text === "string") {
+      let mediaUrl: string | null = null;
+      let mediaType: "photo" | "video" | "document" | "mixed" | null = null;
+      
+      if ("photo" in ctx.message && ctx.message.photo?.length) {
+        contentType = "photo";
+        mediaType = "photo";
+        mediaUrl = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+      } else if ("video" in ctx.message && ctx.message.video) {
+        contentType = "video";
+        mediaType = "video";
+        mediaUrl = ctx.message.video.file_id;
+      } else if ("document" in ctx.message && ctx.message.document) {
+        contentType = "document";
+        mediaType = "document";
+        mediaUrl = ctx.message.document.file_id;
+      } else if ("text" in ctx.message && typeof ctx.message.text === "string") {
+        contentType = "text";
         messageText = ctx.message.text;
+      } else if ("sticker" in ctx.message && ctx.message.sticker) {
+        contentType = "sticker";
+        mediaType = "document";
+        mediaUrl = ctx.message.sticker.file_id;
+      } else {
+        contentType = "mixed";
+        mediaType = "mixed";
       }
-      const mediaUrl = null;
-      await logBroadcast({ adminTelegramId: adminId, contentType, messageText, mediaUrl, totalRecipients: recipients.length, successfulSends: delivered, failedSends: failed });
+      
+      await logBroadcast({ adminTelegramId: adminId, contentType, messageText, mediaUrl, mediaType, totalRecipients: recipients.length, successfulSends: delivered, failedSends: failed });
     } catch (err) {
       logger.warn({ err }, "Failed to record broadcast log");
     }

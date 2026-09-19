@@ -10,6 +10,7 @@ export async function logBroadcast(input: {
   contentType: string;
   messageText?: string | null;
   mediaUrl?: string | null;
+  mediaType?: "photo" | "video" | "document" | "mixed" | null;
   totalRecipients: number;
   successfulSends: number;
   failedSends: number;
@@ -20,6 +21,7 @@ export async function logBroadcast(input: {
     content_type: input.contentType,
     message_text: input.messageText ?? null,
     media_url: input.mediaUrl ?? null,
+    media_type: input.mediaType ?? null,
     total_recipients: input.totalRecipients,
     successful_sends: input.successfulSends,
     failed_sends: input.failedSends,

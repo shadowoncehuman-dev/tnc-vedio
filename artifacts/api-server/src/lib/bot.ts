@@ -92,6 +92,7 @@ export function initBot(): Telegraf | null {
 
   const appUrl = process.env.RENDER_URL ?? "";
   const pendingBroadcasts = new Set<number>();
+  let isBotOnline = true;
 
   // /start — welcome + open mini app button
   tgBot.start(async (ctx) => {
@@ -155,12 +156,34 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/admin — List users studying from bot\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message (text, images, videos, photos)"
+       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/admin — List users studying from bot\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message (text, images, videos, photos)\n/comeback — Send message to all users (bot back online)"
       : "";
     await ctx.reply(
       `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,
       { parse_mode: "MarkdownV2" },
     );
+  });
+
+  // /comeback — Send message to all users (bot back online)
+  tgBot.command("comeback", async (ctx) => {
+    try {
+      if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+      logger.info({ admin: ctx.from?.id }, "/comeback requested - sending messages to all users");
+      
+      // Check if Supabase is configured
+      const { isSupabaseConfigured } = await import("./supabase-server");
+      if (!isSupabaseConfigured()) {
+        await ctx.reply("⚠️ Database not configured. Please check Supabase connection.");
+        return;
+      }
+      
+      await sendComeBackOnlineMessage();
+      await ctx.reply("✅ Come back online message sent to all active users!");
+      
+    } catch (err) {
+      logger.error({ err }, "Error in /comeback handler");
+      try { await ctx.reply("⚠️ Could not send come back online messages. Please check server logs."); } catch {}
+    }
   });
 
   // /stats (admin)
@@ -351,5 +374,58 @@ export async function setupWebhook(webhookUrl: string): Promise<void> {
     logger.info({ webhookUrl }, "Telegram webhook configured");
   } catch (err) {
     logger.error({ err }, "Failed to set Telegram webhook");
+  }
+}
+
+// Function to send "come back online" message to all users
+export async function sendComeBackOnlineMessage(): Promise<void> {
+  if (!bot) return;
+  
+  try {
+    const users = await getAllUsers();
+    const activeUsers = users.filter(user => !user.isBanned);
+    
+    if (!activeUsers.length) {
+      logger.info("No active users to notify about bot coming back online");
+      return;
+    }
+    
+    const imageUrl = await getRandomSfwImage();
+    const comeBackMessage = `🤖 *Bot is Back Online!*\n\nThe TNC Nursing Classes bot has returned to service!\n\n${imageUrl ? `Here's a welcome image:` : ""}\n\nStart studying again with /start and access all your nursing courses, videos, quizzes, and e-notes!`;
+    
+    const batchSize = 10;
+    let delivered = 0;
+    let failed = 0;
+    
+    for (let index = 0; index < activeUsers.length; index += batchSize) {
+      const batch = activeUsers.slice(index, index + batchSize);
+      for (const user of batch) {
+        try {
+          if (imageUrl) {
+            await bot.telegram.sendPhoto(user.telegramId, imageUrl, {
+              caption: comeBackMessage,
+              parse_mode: "MarkdownV2"
+            });
+          } else {
+            await bot.telegram.sendMessage(user.telegramId, comeBackMessage, {
+              parse_mode: "MarkdownV2"
+            });
+          }
+          delivered++;
+        } catch (err) {
+          failed++;
+          logger.warn({ userId: user.telegramId, err }, "Failed to send come back online message");
+        }
+      }
+      
+      if (index + batchSize < activeUsers.length) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+    
+    logger.info({ delivered, failed, total: activeUsers.length }, "Come back online message sent to users");
+    
+  } catch (err) {
+    logger.error({ err }, "Failed to send come back online message");
   }
 }

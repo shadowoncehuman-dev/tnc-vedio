@@ -120,20 +120,34 @@ export function initBot(): Telegraf | null {
     }
   });
 
-  // /admin — list users (admin only)
+  // /admin — list users studying from bot (admin only)
   tgBot.command("admin", async (ctx) => {
     try {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       logger.info({ admin: ctx.from?.id }, "/admin requested");
+      
+      // Check if Supabase is configured
+      const { isSupabaseConfigured } = await import("./supabase-server");
+      if (!isSupabaseConfigured()) {
+        await ctx.reply("⚠️ Database not configured. Please check Supabase connection.");
+        return;
+      }
+      
       const users = await getAllUsers();
-      if (!users.length) { await ctx.reply("No users yet"); return; }
-      const list = users.map((u) =>
-        `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
+      if (!users.length) { await ctx.reply("No users studying from bot yet"); return; }
+      
+      // Filter users who are actively studying (have study time > 0)
+      const activeUsers = users.filter(u => u.totalStudySeconds > 0);
+      
+      if (!activeUsers.length) { await ctx.reply("No users actively studying from bot yet"); return; }
+      
+      const list = activeUsers.map((u) =>
+        `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\` — ${Math.round(u.totalStudySeconds / 60)} min studying${u.isBanned ? " 🚫" : ""}`,
       ).join("\n");
-      await ctx.reply(`👥 *Recent Users:*\n\n${list}`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`📚 *Users Studying from Bot:*\n\n${list}`, { parse_mode: "MarkdownV2" });
     } catch (err) {
       logger.error({ err }, "Error in /admin handler");
-      try { await ctx.reply("⚠️ Admin command failed"); } catch {}
+      try { await ctx.reply("⚠️ Admin command failed. Please check server logs and Supabase connection."); } catch {}
     }
   });
 
@@ -141,7 +155,7 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message"
+       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/admin — List users studying from bot\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message (text, images, videos, photos)"
       : "";
     await ctx.reply(
       `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,

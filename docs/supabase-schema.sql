@@ -55,6 +55,10 @@ as $$
     updated_at = now();
 $$;
 
+-- Drop and recreate the view to avoid "cannot drop columns from view" error
+-- This ensures the view can be updated with new columns if needed
+drop view if exists public.study_leaderboard;
+
 create or replace view public.study_leaderboard as
 select
   u.telegram_id,

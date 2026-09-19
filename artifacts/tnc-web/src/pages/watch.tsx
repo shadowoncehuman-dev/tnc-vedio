@@ -134,15 +134,93 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       >
         Your browser does not support video playback.
       </video>
-      {/* Explicit fullscreen button for Telegram WebView / iOS where native controls fullscreen is blocked */}
-      <button
-        onClick={() => videoRef.current && requestVideoFullscreen(videoRef.current)}
-        className="absolute bottom-2 right-2 z-20 p-1.5 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-colors"
-        aria-label="Fullscreen"
-        data-testid="btn-fullscreen"
-      >
-        <Maximize size={16} />
-      </button>
+      {/* Custom video controls overlay for better visibility and Telegram compatibility */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-10">
+        <div className="flex items-center justify-between gap-2">
+          {/* Left controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (videoRef.current) {
+                  videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+                }
+              }}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Rewind 10 seconds"
+              data-testid="btn-rewind"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11 18V6l-6 6h5v6zm7-12v12l-6-6z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                if (videoRef.current) {
+                  videoRef.current.paused ? videoRef.current.play() : videoRef.current.pause();
+                }
+              }}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Play/Pause"
+              data-testid="btn-play-pause"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                if (videoRef.current) {
+                  videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
+                }
+              }}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Forward 10 seconds"
+              data-testid="btn-forward"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 18v-6l6 6V6l-6 6zM18 6v12"/>
+              </svg>
+            </button>
+          </div>
+          
+          {/* Right controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (videoRef.current) {
+                  videoRef.current.muted = !videoRef.current.muted;
+                }
+              }}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Mute"
+              data-testid="btn-mute"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9v6h5l5 5V4l-5 5H3zm13.5 3c0-1.77-1.01-3.29-2.5-4.03v8.05c1.49-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.07c4.01-.91 7-5.06 7-9.84s-2.99-8.93-7-9.84z"/>
+              </svg>
+            </button>
+            {/* Explicit fullscreen button for Telegram WebView / iOS where native controls fullscreen is blocked */}
+            <button
+              onClick={() => videoRef.current && requestVideoFullscreen(videoRef.current)}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Fullscreen"
+              data-testid="btn-fullscreen"
+            >
+              <Maximize size={16} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Progress bar */}
+        <div className="mt-2 w-full bg-white/20 rounded-full h-1">
+          <div 
+            className="bg-white h-1 rounded-full transition-all duration-300"
+            style={{ 
+              width: videoRef.current ? `${(videoRef.current.currentTime / (videoRef.current.duration || 1)) * 100}%` : '0%' 
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

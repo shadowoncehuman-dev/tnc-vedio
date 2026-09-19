@@ -27,7 +27,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "public/index.html"
+      "dest": "artifacts/tnc-web/dist/public/index.html"
     }
   ],
   "env": {

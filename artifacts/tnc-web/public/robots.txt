@@ -5,7 +5,7 @@ User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://tnc-vedio.onrender.com/sitemap.xml
+Sitemap: https://courses.tncnursing.site/sitemap.xml
 
 # Disallow admin and private areas
 Disallow: /admin

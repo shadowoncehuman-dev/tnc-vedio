@@ -19,7 +19,7 @@ import PdfViewerPage from "@/pages/pdf-viewer";
 import NotFound from "@/pages/not-found";
 import LeaderboardPage from "@/pages/leaderboard";
 
-const TEST_SERIES_URL = "https://test-sagar-jet.vercel.app/tnc-tests";
+const TEST_SERIES_URL = "https://test.tncnursing.site/tnc-tests";
 
 // Redirect component — immediately opens the external test series and goes back
 function TestSeriesRedirect() {

@@ -132,7 +132,7 @@ function StreakWidget() {
             <Video size={14} /> Watch a video
           </Link>
           <button
-            onClick={() => openExternalLink("https://test-sagar-jet.vercel.app/tnc-tests")}
+            onClick={() => openExternalLink("https://test.tncnursing.site/tnc-tests")}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-sm font-semibold transition-colors"
           >
             <Brain size={14} /> Take a quiz
@@ -412,7 +412,7 @@ export default function HomePage() {
                   </Link>
                 ))}
                 <button
-                  onClick={() => openExternalLink("https://test-sagar-jet.vercel.app/tnc-tests")}
+                  onClick={() => openExternalLink("https://test.tncnursing.site/tnc-tests")}
                   className="block text-white/70 hover:text-white text-sm transition-colors text-left"
                 >
                   Mock Tests

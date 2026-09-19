@@ -10,7 +10,7 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const TEST_SERIES_URL = "https://test-sagar-jet.vercel.app/tnc-tests";
+const TEST_SERIES_URL = "https://test.tncnursing.site/tnc-tests";
 
 type NavItem =
   | { path: string; label: string; icon: React.ElementType; external?: undefined }

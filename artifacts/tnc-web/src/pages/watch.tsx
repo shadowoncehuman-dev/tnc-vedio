@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, useListSessions, getListSessionsQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2, Maximize } from "lucide-react";
+import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2, Maximize, Settings, Volume2, Clock, X, SkipBack, SkipForward, VolumeX, Volume1, RotateCw, RotateCcw } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { markVideoWatched } from "@/lib/streak";
@@ -28,10 +28,27 @@ function requestVideoFullscreen(video: HTMLVideoElement) {
   }
 }
 
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
   const [buffering, setBuffering] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showQuality, setShowQuality] = useState(false);
+  const [volume, setVolume] = useState(1);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -46,9 +63,19 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
     const onCanPlay = () => setBuffering(false);
     const onWaiting = () => setBuffering(true);
     const onPlaying = () => setBuffering(false);
+    const onTimeUpdate = () => setCurrentTime(video.currentTime);
+    const onLoadedMetadata = () => setDuration(video.duration);
+    const onVolumeChange = () => {
+      setIsMuted(video.muted);
+      setVolume(video.volume);
+    };
+
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("playing", onPlaying);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("volumechange", onVolumeChange);
 
     if (isHls && !isProxied) {
       import("hls.js").then(({ default: Hls }) => {
@@ -96,9 +123,63 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("volumechange", onVolumeChange);
       cleanup?.();
     };
   }, [src, sessionId]);
+
+  const handleRewind = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+    }
+  };
+
+  const handleForward = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
+    }
+  };
+
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  };
+
+  const handleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      requestVideoFullscreen(videoRef.current);
+    }
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
+      setPlaybackRate(rate);
+    }
+  };
+
+  const handleVolumeChange = (newVolume: number) => {
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume;
+      videoRef.current.muted = newVolume === 0;
+      setVolume(newVolume);
+      setIsMuted(newVolume === 0);
+    }
+  };
 
   if (error) {
     return (
@@ -116,7 +197,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   }
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16/9" }}>
+    <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl">
       {buffering && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
           <Loader2 size={40} className="text-white animate-spin" />
@@ -134,91 +215,139 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       >
         Your browser does not support video playback.
       </video>
-      {/* Custom video controls overlay for better visibility and Telegram compatibility */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-10">
-        <div className="flex items-center justify-between gap-2">
+      {/* Enhanced video controls overlay for better visibility and Telegram compatibility */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 to-black/50 p-4 z-10">
+        {/* Progress bar */}
+        <div className="mb-3 w-full bg-white/20 rounded-full h-1.5">
+          <div 
+            className="bg-white h-1.5 rounded-full transition-all duration-300"
+            style={{ 
+              width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' 
+            }}
+          />
+        </div>
+        
+        <div className="flex items-center justify-between gap-3">
           {/* Left controls */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                if (videoRef.current) {
-                  videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-                }
-              }}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              onClick={handleRewind}
+              className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
               aria-label="Rewind 10 seconds"
               data-testid="btn-rewind"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11 18V6l-6 6h5v6zm7-12v12l-6-6z"/>
-              </svg>
+              <SkipBack size={18} />
             </button>
             <button
-              onClick={() => {
-                if (videoRef.current) {
-                  videoRef.current.paused ? videoRef.current.play() : videoRef.current.pause();
-                }
-              }}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              onClick={handlePlayPause}
+              className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
               aria-label="Play/Pause"
               data-testid="btn-play-pause"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+              <PlayCircle size={18} />
             </button>
             <button
-              onClick={() => {
-                if (videoRef.current) {
-                  videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
-                }
-              }}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              onClick={handleForward}
+              className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
               aria-label="Forward 10 seconds"
               data-testid="btn-forward"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 18v-6l6 6V6l-6 6zM18 6v12"/>
-              </svg>
+              <SkipForward size={18} />
             </button>
+            
+            {/* Timestamp display */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-sm text-white text-xs font-mono">
+              <Clock size={12} className="text-white/70" />
+              <span>{formatTime(currentTime)} / {formatTime(duration || 0)}</span>
+            </div>
           </div>
           
           {/* Right controls */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (videoRef.current) {
-                  videoRef.current.muted = !videoRef.current.muted;
-                }
-              }}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label="Mute"
-              data-testid="btn-mute"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3 9v6h5l5 5V4l-5 5H3zm13.5 3c0-1.77-1.01-3.29-2.5-4.03v8.05c1.49-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.07c4.01-.91 7-5.06 7-9.84s-2.99-8.93-7-9.84z"/>
-              </svg>
-            </button>
+            {/* Volume control */}
+            <div className="relative group">
+              <button
+                onClick={handleMute}
+                className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
+                aria-label="Mute"
+                data-testid="btn-mute"
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX size={18} />
+                ) : volume < 0.5 ? (
+                  <Volume1 size={18} />
+                ) : (
+                  <Volume2 size={18} />
+                )}
+              </button>
+              <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 hidden group-hover:block bg-black/90 backdrop-blur-sm rounded-lg p-3 shadow-xl border border-white/10 min-w-[120px]">
+                <div className="flex items-center gap-2">
+                  <VolumeX size={14} className="text-white/70" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                    className="w-20 h-1.5 bg-white/20 rounded-full appearance-none slider"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Settings button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
+                aria-label="Settings"
+                data-testid="btn-settings"
+              >
+                <Settings size={18} />
+              </button>
+              {showSettings && (
+                <div className="absolute bottom-12 right-0 bg-black/90 backdrop-blur-sm rounded-lg p-4 shadow-xl border border-white/10 min-w-[180px]">
+                  <div className="text-white text-xs font-medium mb-3">Playback Speed</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => {
+                          handlePlaybackRateChange(rate);
+                          setShowSettings(false);
+                        }}
+                        className={`px-2 py-1.5 rounded text-xs font-medium transition-colors ${playbackRate === rate ? 'bg-white text-black' : 'bg-white/20 text-white hover:bg-white/30'}`}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="text-white text-xs font-medium mb-2">Quality</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowQuality(!showQuality)}
+                        className="px-2 py-1 rounded text-xs font-medium bg-white/20 text-white hover:bg-white/30 transition-colors"
+                      >
+                        Auto
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             {/* Explicit fullscreen button for Telegram WebView / iOS where native controls fullscreen is blocked */}
             <button
-              onClick={() => videoRef.current && requestVideoFullscreen(videoRef.current)}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              onClick={handleFullscreen}
+              className="p-2.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all duration-200 backdrop-blur-sm"
               aria-label="Fullscreen"
               data-testid="btn-fullscreen"
             >
-              <Maximize size={16} />
+              <Maximize size={18} />
             </button>
           </div>
-        </div>
-        
-        {/* Progress bar */}
-        <div className="mt-2 w-full bg-white/20 rounded-full h-1">
-          <div 
-            className="bg-white h-1 rounded-full transition-all duration-300"
-            style={{ 
-              width: videoRef.current ? `${(videoRef.current.currentTime / (videoRef.current.duration || 1)) * 100}%` : '0%' 
-            }}
-          />
         </div>
       </div>
     </div>

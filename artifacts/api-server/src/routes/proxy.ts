@@ -63,15 +63,26 @@ function parseCourse(row: Record<string, unknown>) {
   };
 }
 
-function parseSubject(row: Record<string, unknown>) {
-  const json = (row.json as Record<string, unknown>) ?? {};
-  return {
-    id: row.id,
-    rowId: row.row_id as string,
-    courseId: (row.co_refid ?? json._co) as string | null,
-    name: (json._na ?? "Untitled subject") as string,
-    serialNo: String(json._sno ?? ""),
-  };
+function deriveSubject(title: string): { rowId: string; name: string } {
+  const normalized = title.trim().toLowerCase();
+  const rules: Array<[RegExp, string, string]> = [
+    [/^obg\b|\bobg\s*[-:]/i, "obg", "OBG"],
+    [/^fon\b|nursing foundation/i, "nursing-foundation", "Nursing Foundation"],
+    [/^blood\b/i, "blood", "Blood"],
+    [/^psychology\b/i, "psychology", "Psychology"],
+    [/^psychiatric\b|psychiatric nursing/i, "psychiatric-nursing", "Psychiatric Nursing"],
+    [/^pediatric\b|^paediatric\b|pediatric nursing/i, "pediatric-nursing", "Pediatric Nursing"],
+    [/^community\b|community health/i, "community-health", "Community Health Nursing"],
+    [/^pharmacology\b/i, "pharmacology", "Pharmacology"],
+    [/^anatomy\b/i, "anatomy", "Anatomy"],
+    [/^physiology\b/i, "physiology", "Physiology"],
+    [/^microbiology\b/i, "microbiology", "Microbiology"],
+    [/^nutrition\b/i, "nutrition", "Nutrition"],
+  ];
+  for (const [pattern, rowId, name] of rules) {
+    if (pattern.test(normalized)) return { rowId, name };
+  }
+  return { rowId: "uncategorized", name: "Uncategorized" };
 }
 
 function isYouTubeUrl(url: unknown): url is string {
@@ -136,6 +147,8 @@ function convertFirebaseStorageUrl(url: string): string {
 
 function parseChapter(row: Record<string, unknown>) {
   const json = (row.json as Record<string, unknown>) ?? {};
+  const title = (json._na ?? "Untitled") as string;
+  const derivedSubject = deriveSubject(title);
   const vi = (json._vi as Record<string, unknown>) ?? {};
   const de = (json._de as Record<string, unknown>) ?? {};
   const deVi = (de._vi as Record<string, unknown>) ?? {};
@@ -275,7 +288,7 @@ function parseChapter(row: Record<string, unknown>) {
   return {
     id: row.id as number,
     rowId: row.row_id as string,
-    title: (json._na ?? "Untitled") as string,
+    title,
     description: "",
     videoUrl,
     pdfUrl,
@@ -283,7 +296,7 @@ function parseChapter(row: Record<string, unknown>) {
     contentType,
     type: finalType,
     courseId: (row.co_refid ?? json._co) as string | null,
-    subjectId: (row.su_refid ?? json._su) as string | null,
+    subjectId: derivedSubject.rowId,
     isPaid: (json._pr_ty as number) === 1,
     duration: null as string | null,
     thumbnailUrl: null as string | null,
@@ -396,19 +409,41 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
 router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
   try {
     const { courseId } = req.query;
-    const cond: Record<string, unknown> = {};
-    if (typeof courseId === "string" && courseId.trim()) cond.co_refid = courseId.trim();
 
-    const data = await crmQuery({
-      fn: "common_fn", se: "fe", sch: "t_su",
-      data: { json: "*" }, cond,
+    const contentData = await crmQuery({
+        fn: "common_fn", se: "fe", sch: "t_ch",
+        data: { json: "*" }, cond: courseId ? { co_refid: courseId } : {},
     });
-    const subjects = Array.isArray(data)
-      ? (data as Record<string, unknown>[]).map(parseSubject)
-      : [];
+    const subjects: Array<Record<string, unknown> & { rowId: string; name: string; videoCount: number; pdfCount: number; totalCount: number }> = [];
+    const subjectById = new Map(subjects.map((subject) => [subject.rowId, subject]));
+    if (Array.isArray(contentData)) {
+      for (const row of contentData as Record<string, unknown>[]) {
+        const parsed = parseChapter(row);
+        const subjectId = parsed.subjectId?.trim() || "uncategorized";
+        let subject = subjectById.get(subjectId);
+        if (!subject) {
+          const derived = deriveSubject(parsed.title);
+          subject = {
+            id: 0,
+            rowId: subjectId,
+            courseId: typeof courseId === "string" ? courseId : null,
+            name: derived.name,
+            serialNo: String(subjects.length).padStart(4, "0"),
+            videoCount: 0,
+            pdfCount: 0,
+            totalCount: 0,
+          };
+          subjects.push(subject);
+          subjectById.set(subject.rowId, subject);
+        }
+        subject.totalCount += 1;
+        if (parsed.pdfUrl || parsed.contentType === "pdf") subject.pdfCount += 1;
+        else subject.videoCount += 1;
+      }
+    }
     subjects.sort((a, b) => {
-      const aNo = parseFloat(a.serialNo) || Number.MAX_SAFE_INTEGER;
-      const bNo = parseFloat(b.serialNo) || Number.MAX_SAFE_INTEGER;
+      const aNo = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : Number.MAX_SAFE_INTEGER;
+      const bNo = Number.isFinite(Number(b.serialNo)) ? Number(b.serialNo) : Number.MAX_SAFE_INTEGER;
       return aNo - bNo || a.name.localeCompare(b.name);
     });
     res.json(subjects);
@@ -555,9 +590,10 @@ router.get("/notes", async (req: Request, res: Response): Promise<void> => {
 // GET /api/sessions — queries t_ch (real video sessions) with pagination + sort
 router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { courseId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
+    const { courseId, subjectId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
     const cond: Record<string, unknown> = {};
     if (courseId) cond.co_refid = courseId;
+    const requestedSubjectId = typeof subjectId === "string" ? subjectId.trim() : "";
 
     const data = await crmQuery({
       fn: "common_fn", se: "fe", sch: "t_ch",
@@ -570,6 +606,7 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
     }
 
     let sessions = (data as Record<string, unknown>[]).map(parseChapter);
+    if (requestedSubjectId) sessions = sessions.filter((session) => session.subjectId === requestedSubjectId);
 
     // Filter by search query if provided
     if (search && typeof search === "string" && search.trim().length > 0) {

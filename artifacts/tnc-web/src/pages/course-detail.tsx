@@ -28,11 +28,6 @@ export default function CourseDetailPage() {
 
   const { data: courses, isLoading: coursesLoading } = useGetCourses();
   const course = (Array.isArray(courses) ? courses : []).find((c) => c.rowId === courseId);
-  const { data: promo } = useGetPromoStatus();
-  const { data: purchases } = useGetUserPurchases(user?.userId ?? "", {
-    query: { enabled: !!user, queryKey: getGetUserPurchasesQueryKey(user?.userId ?? "") },
-  });
-  const isCourseUnlocked = Boolean(promo?.enabled) || (Array.isArray(purchases) && purchases.some((purchase) => purchase.courseId === courseId));
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ["subjects", courseId],
@@ -43,6 +38,11 @@ export default function CourseDetailPage() {
       return response.json() as Promise<Subject[]>;
     },
   });
+  const { data: promo } = useGetPromoStatus();
+  const { data: purchases } = useGetUserPurchases(user?.userId ?? "", {
+    query: { enabled: !!user, queryKey: getGetUserPurchasesQueryKey(user?.userId ?? "") },
+  });
+  const isCourseUnlocked = Boolean(promo?.enabled) || (Array.isArray(purchases) && purchases.some((purchase) => purchase.courseId === courseId));
 
   function handleFav() {
     if (!courseId) return;

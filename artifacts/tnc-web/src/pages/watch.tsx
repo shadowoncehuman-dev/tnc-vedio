@@ -309,7 +309,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
                 <div className="absolute bottom-12 right-0 bg-black/90 backdrop-blur-sm rounded-lg p-4 shadow-xl border border-white/10 min-w-[180px]">
                   <div className="text-white text-xs font-medium mb-3">Playback Speed</div>
                   <div className="grid grid-cols-3 gap-2">
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2, 2.25, 2.5].map((rate) => (
                       <button
                         key={rate}
                         onClick={() => {

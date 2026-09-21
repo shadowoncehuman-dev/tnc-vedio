@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send } from "lucide-react";
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
@@ -11,6 +11,8 @@ interface LayoutProps {
 }
 
 const TEST_SERIES_URL = "https://test.tncnursing.site/tnc-tests";
+const SUPPORT_URL = "https://t.me/testsagarbot";
+const CHANNEL_URL = "https://t.me/tnc_test_series_free";
 
 type NavItem =
   | { path: string; label: string; icon: React.ElementType; external?: undefined }
@@ -149,11 +151,16 @@ export default function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <img
-                src={`${BASE}/logo.svg`}
+                src={`${BASE}/l1.jpg`}
                 alt="TNC"
-                className="w-10 h-10 object-contain"
+                className="w-10 h-10 rounded-xl object-cover"
                 onError={(e) => {
                   const t = e.target as HTMLImageElement;
+                  if (t.src.endsWith("/l1.jpg")) {
+                    t.src = `${BASE}/logo.svg`;
+                    t.className = "w-10 h-10 object-contain";
+                    return;
+                  }
                   t.style.display = "none";
                   const parent = t.parentElement;
                   if (parent) {
@@ -222,7 +229,7 @@ export default function Layout({ children }: LayoutProps) {
                 </>
               ) : (
                 <a
-                  href="https://t.me/testsagarbot"
+                  href={SUPPORT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
@@ -232,6 +239,16 @@ export default function Layout({ children }: LayoutProps) {
                   Support
                 </a>
               )}
+              <a
+                href={CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/15 text-white hover:bg-white/25 transition-colors"
+                data-testid="nav-join-channel"
+              >
+                <Send size={14} />
+                Join Channel
+              </a>
             </div>
           </div>
         </div>
@@ -242,10 +259,18 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
             <img
-              src={`${BASE}/logo.svg`}
+              src={`${BASE}/l1.jpg`}
               alt="TNC"
-              className="w-8 h-8 object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              className="w-8 h-8 rounded-lg object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target.src.endsWith("/l1.jpg")) {
+                  target.src = `${BASE}/logo.svg`;
+                  target.className = "w-8 h-8 object-contain";
+                } else {
+                  target.style.display = "none";
+                }
+              }}
             />
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>
@@ -332,13 +357,23 @@ export default function Layout({ children }: LayoutProps) {
             {/* Support link */}
             <div className="border-t mt-2 pt-2 px-4">
               <a
-                href="https://t.me/testsagarbot"
+                href={SUPPORT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 <MessageCircle size={16} />
                 Contact Admin / Support
+              </a>
+              <a
+                href={CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                data-testid="mobile-join-channel"
+              >
+                <Send size={16} />
+                Join Channel for Updates
               </a>
             </div>
           </div>

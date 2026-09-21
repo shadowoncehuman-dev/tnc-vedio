@@ -5,8 +5,14 @@ import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toggleFavorite, isFavorite } from "@/lib/streak";
 import StudyEmptyState from "@/components/StudyEmptyState";
+
+type Subject = {
+  rowId: string;
+  name: string;
+};
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -26,6 +32,15 @@ export default function CourseDetailPage() {
     { courseId, search: searchQuery || undefined },
     { query: { queryKey: getListSessionsQueryKey({ courseId, search: searchQuery || undefined }) } }
   );
+  const { data: subjects = [] } = useQuery<Subject[]>({
+    queryKey: ["subjects", courseId],
+    enabled: !!courseId,
+    queryFn: async () => {
+      const response = await fetch(`/api/subjects?courseId=${encodeURIComponent(courseId ?? "")}`);
+      if (!response.ok) throw new Error("Failed to load subjects");
+      return response.json() as Promise<Subject[]>;
+    },
+  });
 
   const { data: promo } = useGetPromoStatus();
   const { data: purchases } = useGetUserPurchases(user?.userId ?? "", {
@@ -59,6 +74,11 @@ export default function CourseDetailPage() {
     }
     return [...groups.entries()];
   }, [displaySessions]);
+
+  const subjectNames = useMemo(
+    () => new Map(subjects.map((subject) => [subject.rowId, subject.name.trim()])),
+    [subjects],
+  );
 
   function handleFav() {
     if (!courseId) return;
@@ -215,9 +235,13 @@ export default function CourseDetailPage() {
               <section key={subjectId} className="mb-6" data-testid={`subject-group-${subjectId}`}>
                 <div className="mb-2 flex items-center gap-3 border-b border-gray-200 pb-2">
                   <h3 className="text-sm font-black text-gray-800">
-                    {subjectId === "unassigned" ? "General Lectures" : `Subject ${subjectId}`}
+                    {subjectId === "unassigned" ? "General Content" : subjectNames.get(subjectId) ?? "Subject content"}
                   </h3>
-                  <span className="text-xs text-gray-400">{subjectSessions.length} lectures</span>
+                  <span className="text-xs text-gray-400">
+                    {subjectSessions.filter((session) => session.contentType === "pdf" || session.pdfUrl).length} PDFs
+                    {" · "}
+                    {subjectSessions.filter((session) => session.contentType !== "pdf" && !session.pdfUrl).length} lectures
+                  </span>
                 </div>
                 <div className="space-y-2">
             {subjectSessions.map((session, i) => {

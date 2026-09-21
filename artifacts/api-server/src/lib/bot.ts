@@ -297,7 +297,11 @@ export function initBot(): Telegraf | null {
 
   tgBot.on("message", async (ctx) => {
     const adminId = ctx.from?.id;
-    if (!adminId || !isAdmin(adminId) || !pendingBroadcasts.has(adminId)) return;
+    if (!adminId || !isAdmin(adminId)) return;
+    if (!pendingBroadcasts.has(adminId)) {
+      await ctx.reply("I received your message. Use /help for commands, or /broadcast to send it to all users.");
+      return;
+    }
     logger.info({ adminId, message: ctx.message }, "received broadcast content from admin");
     if ("text" in ctx.message && ctx.message.text === "/cancel") {
       pendingBroadcasts.delete(adminId);
@@ -391,7 +395,7 @@ export async function sendComeBackOnlineMessage(): Promise<void> {
     }
     
     const imageUrl = await getRandomSfwImage();
-    const comeBackMessage = `🤖 *Bot is Back Online!*\n\nThe TNC Nursing Classes bot has returned to service!\n\n${imageUrl ? `Here's a welcome image:` : ""}\n\nStart studying again with /start and access all your nursing courses, videos, quizzes, and e-notes!`;
+    const comeBackMessage = "🤖 Bot is back online!\n\nThe TNC Nursing Classes bot has returned to service. Start studying again with /start and access your courses, video lectures, quizzes, and e-notes.";
     
     const batchSize = 10;
     let delivered = 0;
@@ -402,14 +406,9 @@ export async function sendComeBackOnlineMessage(): Promise<void> {
       for (const user of batch) {
         try {
           if (imageUrl) {
-            await bot.telegram.sendPhoto(user.telegramId, imageUrl, {
-              caption: comeBackMessage,
-              parse_mode: "MarkdownV2"
-            });
+            await bot.telegram.sendPhoto(user.telegramId, imageUrl, { caption: comeBackMessage });
           } else {
-            await bot.telegram.sendMessage(user.telegramId, comeBackMessage, {
-              parse_mode: "MarkdownV2"
-            });
+            await bot.telegram.sendMessage(user.telegramId, comeBackMessage);
           }
           delivered++;
         } catch (err) {

@@ -49,6 +49,17 @@ export default function CourseDetailPage() {
       ? pdfSessions
       : allSessions;
 
+  const subjectGroups = useMemo(() => {
+    const groups = new Map<string, typeof displaySessions>();
+    for (const session of displaySessions) {
+      const subjectId = session.subjectId?.trim() || "unassigned";
+      const sessions = groups.get(subjectId) ?? [];
+      sessions.push(session);
+      groups.set(subjectId, sessions);
+    }
+    return [...groups.entries()];
+  }, [displaySessions]);
+
   function handleFav() {
     if (!courseId) return;
     const next = toggleFavorite("courses", courseId);
@@ -200,7 +211,16 @@ export default function CourseDetailPage() {
             <h2 className="text-base font-black text-gray-900 mb-4">
               Course Content <span className="text-gray-400 font-normal text-sm">({displaySessions.length} items)</span>
             </h2>
-            {displaySessions.map((session, i) => {
+            {subjectGroups.map(([subjectId, subjectSessions], subjectIndex) => (
+              <section key={subjectId} className="mb-6" data-testid={`subject-group-${subjectId}`}>
+                <div className="mb-2 flex items-center gap-3 border-b border-gray-200 pb-2">
+                  <h3 className="text-sm font-black text-gray-800">
+                    {subjectId === "unassigned" ? "General Lectures" : `Subject ${subjectId}`}
+                  </h3>
+                  <span className="text-xs text-gray-400">{subjectSessions.length} lectures</span>
+                </div>
+                <div className="space-y-2">
+            {subjectSessions.map((session, i) => {
               const isVideo = session.contentType === "youtube" || (!session.pdfUrl && session.videoUrl);
               const isPdf = session.contentType === "pdf" || session.pdfUrl;
               const isFirebase = session.contentType === "firebase";
@@ -230,7 +250,7 @@ export default function CourseDetailPage() {
                   key={session.rowId}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.5) }}
+                  transition={{ delay: Math.min((subjectIndex * 0.05 + i * 0.03), 0.5) }}
                 >
                   {canAccess ? (
                     <Link
@@ -273,6 +293,9 @@ export default function CourseDetailPage() {
                 </motion.div>
               );
             })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

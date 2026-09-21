@@ -63,6 +63,17 @@ function parseCourse(row: Record<string, unknown>) {
   };
 }
 
+function parseSubject(row: Record<string, unknown>) {
+  const json = (row.json as Record<string, unknown>) ?? {};
+  return {
+    id: row.id,
+    rowId: row.row_id as string,
+    courseId: (row.co_refid ?? json._co) as string | null,
+    name: (json._na ?? "Untitled subject") as string,
+    serialNo: String(json._sno ?? ""),
+  };
+}
+
 function isYouTubeUrl(url: unknown): url is string {
   if (typeof url !== "string" || !url.startsWith("http")) return false;
   return url.includes("youtube.com") || url.includes("youtu.be");
@@ -378,6 +389,32 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Failed to fetch courses");
     res.status(500).json({ error: "Failed to fetch courses" });
+  }
+});
+
+// GET /api/subjects — named subjects for a course
+router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId } = req.query;
+    const cond: Record<string, unknown> = {};
+    if (typeof courseId === "string" && courseId.trim()) cond.co_refid = courseId.trim();
+
+    const data = await crmQuery({
+      fn: "common_fn", se: "fe", sch: "t_su",
+      data: { json: "*" }, cond,
+    });
+    const subjects = Array.isArray(data)
+      ? (data as Record<string, unknown>[]).map(parseSubject)
+      : [];
+    subjects.sort((a, b) => {
+      const aNo = parseFloat(a.serialNo) || Number.MAX_SAFE_INTEGER;
+      const bNo = parseFloat(b.serialNo) || Number.MAX_SAFE_INTEGER;
+      return aNo - bNo || a.name.localeCompare(b.name);
+    });
+    res.json(subjects);
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch subjects");
+    res.status(500).json({ error: "Failed to fetch subjects" });
   }
 });
 

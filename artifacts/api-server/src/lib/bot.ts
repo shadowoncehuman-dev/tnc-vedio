@@ -12,6 +12,7 @@ import { getRandomSfwImage } from "./waifu";
 import { isAdmin } from "./admin";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN;
+const APP_URL = process.env.PUBLIC_APP_URL ?? process.env.APP_URL ?? process.env.RENDER_URL ?? "https://courses.tncnursing.site";
 
 export let bot: Telegraf | null = null;
 
@@ -21,7 +22,7 @@ function escapeMarkdownV2(text: string): string {
 }
 
 async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: string; username?: string }) {
-  const appUrl = process.env.RENDER_URL ?? "";
+  const appUrl = APP_URL;
   const imageUrl = await getRandomSfwImage();
   
   const welcomeText = `🏥 *Welcome to TNC Nursing Classes!*
@@ -90,7 +91,7 @@ export function initBot(): Telegraf | null {
   const tgBot = new Telegraf(BOT_TOKEN);
   bot = tgBot;
 
-  const appUrl = process.env.RENDER_URL ?? "";
+  const appUrl = APP_URL;
   const pendingBroadcasts = new Set<number>();
   let isBotOnline = true;
 

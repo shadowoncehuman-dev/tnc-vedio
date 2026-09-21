@@ -1,5 +1,12 @@
 export function isAdmin(telegramUserId?: number | string): boolean {
-  const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID;
-  if (!ADMIN_CHAT_ID || !telegramUserId) return false;
-  return String(telegramUserId) === String(ADMIN_CHAT_ID);
+  if (!telegramUserId) return false;
+  const configuredIds = [
+    process.env.ADMIN_CHAT_ID,
+    process.env.ADMIN_TELEGRAM_ID,
+    process.env.TELEGRAM_ADMIN_ID,
+  ]
+    .flatMap((value) => (value ?? "").split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return configuredIds.includes(String(telegramUserId));
 }

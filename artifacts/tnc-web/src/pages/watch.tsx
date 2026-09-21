@@ -205,7 +205,6 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       )}
       <video
         ref={videoRef}
-        controls
         playsInline
         preload="metadata"
         className="absolute inset-0 z-0 w-full h-full bg-black"

@@ -18,4 +18,4 @@ Disallow: /buy
 Crawl-delay: 10
 
 # Host
-Host: https://tnc-vedio.onrender.com
+Host: courses.tncnursing.site

@@ -156,7 +156,7 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
     >
       <div className="relative h-44 overflow-hidden bg-[hsl(var(--muted))]">
         <img
-          src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+          src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
           alt={course.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -249,7 +249,7 @@ export default function HomePage() {
             <div className="absolute -right-3 -top-3 h-full w-full border border-[hsl(var(--secondary))]" />
             <div className="relative bg-[hsl(var(--card))] p-3 text-[hsl(var(--foreground))] editorial-shadow">
               <div className="relative h-64 overflow-hidden bg-[hsl(var(--muted))] md:h-80">
-                <img src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg" alt="Nursing study material" className="h-full w-full object-cover" />
+                <img src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg" alt="Nursing study material" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4 text-white">
                   <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--secondary))]"><Stethoscope size={14} /> Exam room ready</div>

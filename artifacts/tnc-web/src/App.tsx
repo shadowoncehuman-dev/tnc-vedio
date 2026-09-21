@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Component, type ErrorInfo, type ReactNode, useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -40,6 +40,46 @@ const queryClient = new QueryClient({
 });
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+type AppErrorBoundaryProps = { children: ReactNode };
+type AppErrorBoundaryState = { hasError: boolean };
+
+class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
+  state: AppErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): AppErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Unhandled application error", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 px-4 py-20 text-center">
+          <h1 className="text-xl font-black text-gray-900">This page could not be loaded</h1>
+          <p className="mt-2 text-sm text-gray-500">Please try again or return to your courses.</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Try again
+            </button>
+            <a href={`${BASE}/courses`} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700">
+              Back to courses
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function Router() {
   return (
@@ -112,9 +152,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SecurityGuard />
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        <AppErrorBoundary>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+        </AppErrorBoundary>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

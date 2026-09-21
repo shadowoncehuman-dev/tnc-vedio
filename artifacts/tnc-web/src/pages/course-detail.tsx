@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toggleFavorite, isFavorite } from "@/lib/streak";
 import StudyEmptyState from "@/components/StudyEmptyState";
+import { customFetch } from "@/lib/api-client";
 
 type Subject = {
   rowId: string;
@@ -29,14 +30,10 @@ export default function CourseDetailPage() {
   const { data: courses, isLoading: coursesLoading } = useGetCourses();
   const course = (Array.isArray(courses) ? courses : []).find((c) => c.rowId === courseId);
 
-  const { data: subjects = [] } = useQuery<Subject[]>({
+  const { data: subjects = [], isLoading: subjectsLoading, isError: subjectsError } = useQuery<Subject[]>({
     queryKey: ["subjects", courseId],
     enabled: !!courseId,
-    queryFn: async () => {
-      const response = await fetch(`/api/subjects?courseId=${encodeURIComponent(courseId ?? "")}`);
-      if (!response.ok) throw new Error("Failed to load subjects");
-      return response.json() as Promise<Subject[]>;
-    },
+    queryFn: () => customFetch<Subject[]>(`/api/subjects?courseId=${encodeURIComponent(courseId ?? "")}`),
   });
   const { data: promo } = useGetPromoStatus();
   const { data: purchases } = useGetUserPurchases(user?.userId ?? "", {
@@ -124,7 +121,13 @@ export default function CourseDetailPage() {
       )}
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {subjects.length === 0 ? (
+        {subjectsLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((item) => <div key={item} className="h-28 rounded-xl skeleton" />)}
+          </div>
+        ) : subjectsError ? (
+          <StudyEmptyState title="Subjects could not be loaded" message="Refresh the page and try again." />
+        ) : subjects.length === 0 ? (
           <StudyEmptyState title="No subjects available yet" />
         ) : (
           <div>

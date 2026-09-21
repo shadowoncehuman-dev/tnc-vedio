@@ -54,20 +54,43 @@ export async function recordWebsiteStudyHeartbeat(input: WebsiteStudyHeartbeat):
 }
 
 export async function getLeaderboard(limit = 20): Promise<StudySessionSummary[]> {
-  const rows = await supabaseRequest<Array<{
-    participant_id: number | string;
-    first_name: string;
-    username: string | null;
-    seconds: number;
-    sessions: number;
-  }>>(
-    `study_leaderboard?select=participant_id,first_name,username,seconds,sessions&order=seconds.desc&limit=${Math.min(limit, 100)}`,
-  );
-  return rows.map((row) => ({
-    telegramId: String(row.participant_id),
-    firstName: row.first_name,
-    username: row.username,
-    seconds: Number(row.seconds),
-    sessions: Number(row.sessions),
-  }));
+  const maxRows = Math.min(limit, 100);
+  try {
+    const rows = await supabaseRequest<Array<{
+      participant_id: number | string;
+      first_name: string;
+      username: string | null;
+      seconds: number;
+      sessions: number;
+    }>>(`study_leaderboard?select=participant_id,first_name,username,seconds,sessions&order=seconds.desc&limit=${maxRows}`);
+    return rows.map((row) => ({
+      telegramId: String(row.participant_id),
+      firstName: row.first_name,
+      username: row.username,
+      seconds: Number(row.seconds),
+      sessions: Number(row.sessions),
+    }));
+  } catch {
+    const [legacyRows, sessionRows] = await Promise.all([
+      supabaseRequest<Array<{
+        telegram_id: number | string;
+        first_name: string;
+        username: string | null;
+        seconds: number;
+      }>>(`study_leaderboard?select=telegram_id,first_name,username,seconds&order=seconds.desc&limit=${maxRows}`),
+      supabaseRequest<Array<{ telegram_id: number | string }>>("study_sessions?select=telegram_id"),
+    ]);
+    const sessionCounts = new Map<string, number>();
+    for (const session of sessionRows) {
+      const telegramId = String(session.telegram_id);
+      sessionCounts.set(telegramId, (sessionCounts.get(telegramId) ?? 0) + 1);
+    }
+    return legacyRows.map((row) => ({
+      telegramId: `telegram_${row.telegram_id}`,
+      firstName: row.first_name,
+      username: row.username,
+      seconds: Number(row.seconds),
+      sessions: sessionCounts.get(String(row.telegram_id)) ?? 0,
+    }));
+  }
 }

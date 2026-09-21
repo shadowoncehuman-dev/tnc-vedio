@@ -511,6 +511,7 @@ function CoursePlaylist({ courseId, currentSessionId }: { courseId: string; curr
 export default function WatchPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const user = getUser();
+  const [visitorName, setVisitorName] = useState(() => localStorage.getItem("tnc_visitor_name") ?? "");
 
   const { data: session, isLoading } = useGetSession(sessionId ?? "");
   const { data: promo } = useGetPromoStatus();
@@ -523,10 +524,19 @@ export default function WatchPage() {
   const isUnlocked = !session?.isPaid || isCourseUnlocked;
 
   useEffect(() => {
+    const handleVisitorNameUpdated = (event: Event) => {
+      const name = (event as CustomEvent<string>).detail;
+      if (typeof name === "string") setVisitorName(name);
+    };
+    window.addEventListener("tnc-visitor-name-updated", handleVisitorNameUpdated);
+    return () => window.removeEventListener("tnc-visitor-name-updated", handleVisitorNameUpdated);
+  }, []);
+
+  useEffect(() => {
     const telegramUser = getTelegramUser();
     const visitorId = localStorage.getItem("tnc_visitor_id");
-    const visitorName = user?.name || localStorage.getItem("tnc_visitor_name");
-    if ((!telegramUser && (!visitorId || !visitorName)) || !isUnlocked || !sessionId) return;
+    const resolvedVisitorName = user?.name || visitorName;
+    if ((!telegramUser && (!visitorId || !resolvedVisitorName)) || !isUnlocked || !sessionId) return;
     let lastSent = Date.now();
     const timer = window.setInterval(() => {
       const elapsed = Math.round((Date.now() - lastSent) / 1000);
@@ -536,14 +546,14 @@ export default function WatchPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(telegramUser ? { telegramId: telegramUser.id } : { visitorId, visitorName }),
+          ...(telegramUser ? { telegramId: telegramUser.id } : { visitorId, visitorName: resolvedVisitorName }),
           sessionId,
           seconds: elapsed,
         }),
       }).catch(() => {});
     }, 30_000);
     return () => window.clearInterval(timer);
-  }, [isUnlocked, sessionId, user?.name]);
+  }, [isUnlocked, sessionId, user?.name, visitorName]);
 
   if (isLoading) {
     return (

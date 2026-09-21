@@ -22,13 +22,29 @@ function formatStudyTime(seconds: number): string {
 export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    let active = true;
     fetch(`${BASE}/api/bot/study/leaderboard`)
-      .then((response) => response.ok ? response.json() as Promise<LeaderboardRow[]> : [])
-      .then((data) => setRows(Array.isArray(data) ? data : []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to load leaderboard");
+        return response.json() as Promise<LeaderboardRow[]>;
+      })
+      .then((data) => {
+        if (!active) return;
+        setRows(Array.isArray(data) ? data : []);
+        setError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRows([]);
+        setError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, []);
 
   return (
@@ -48,6 +64,12 @@ export default function LeaderboardPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((item) => <div key={item} className="h-16 skeleton rounded-2xl" />)}
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-2xl border border-red-100 p-12 text-center text-gray-500">
+            <Trophy size={42} className="mx-auto text-red-200 mb-3" />
+            <p className="font-semibold">Leaderboard is temporarily unavailable</p>
+            <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
           </div>
         ) : rows.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-500">

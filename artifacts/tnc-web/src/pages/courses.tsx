@@ -146,7 +146,7 @@ export default function CoursesPage() {
                     <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
                       {(() => {
                       // Force the specific thumbnail for ALL courses
-                      const thumbnailUrl = "https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg";
+                      const thumbnailUrl = "https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg";
                       return (
                         <img
                           src={thumbnailUrl}

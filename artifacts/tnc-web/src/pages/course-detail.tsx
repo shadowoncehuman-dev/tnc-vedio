@@ -1,7 +1,8 @@
 import { useParams, Link } from "wouter";
-import { useGetCourses } from "@/lib/api-client";
-import { ArrowLeft, Heart, ChevronRight, BookOpen } from "lucide-react";
+import { useGetCourses, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey } from "@/lib/api-client";
+import { ArrowLeft, Heart, ChevronRight, BookOpen, Lock } from "lucide-react";
 import Layout from "@/components/Layout";
+import { getUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toggleFavorite, isFavorite } from "@/lib/streak";
@@ -18,6 +19,7 @@ type Subject = {
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
+  const user = getUser();
   const [isFav, setIsFav] = useState(false);
 
   useEffect(() => {
@@ -26,6 +28,11 @@ export default function CourseDetailPage() {
 
   const { data: courses, isLoading: coursesLoading } = useGetCourses();
   const course = (Array.isArray(courses) ? courses : []).find((c) => c.rowId === courseId);
+  const { data: promo } = useGetPromoStatus();
+  const { data: purchases } = useGetUserPurchases(user?.userId ?? "", {
+    query: { enabled: !!user, queryKey: getGetUserPurchasesQueryKey(user?.userId ?? "") },
+  });
+  const isCourseUnlocked = Boolean(promo?.enabled) || (Array.isArray(purchases) && purchases.some((purchase) => purchase.courseId === courseId));
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ["subjects", courseId],
@@ -88,7 +95,7 @@ export default function CourseDetailPage() {
           </div>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-48 h-32 md:h-36 rounded-xl overflow-hidden flex-shrink-0">
-              <img src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg" alt={course.name} className="w-full h-full object-cover" />
+              <img src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg" alt={course.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <h1 className="text-xl md:text-2xl font-black mb-2">{course.name}</h1>

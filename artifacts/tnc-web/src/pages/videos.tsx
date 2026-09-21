@@ -95,7 +95,7 @@ export default function VideosPage() {
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100 group flex flex-col h-full">
                     <div className="relative h-40 overflow-hidden bg-gradient-to-br from-blue-900 to-indigo-900">
                       <img
-                        src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+                        src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
                         alt={course.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

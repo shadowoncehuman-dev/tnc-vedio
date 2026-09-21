@@ -176,7 +176,7 @@ export default function BuyPage() {
                 >
                   <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
                     <img
-                      src="https://i.pinimg.com/736x/18/75/01/18750180cc2f14a2a18493ae12b000cd.jpg"
+                      src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
                       alt={course.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

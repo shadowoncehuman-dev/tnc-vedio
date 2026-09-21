@@ -197,7 +197,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   }
 
   return (
-    <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl">
+    <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black shadow-2xl">
       {buffering && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
           <Loader2 size={40} className="text-white animate-spin" />
@@ -208,7 +208,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
         controls
         playsInline
         preload="metadata"
-        className="absolute inset-0 w-full h-full bg-black"
+        className="absolute inset-0 z-0 w-full h-full bg-black"
         data-testid="video-player"
         controlsList="nodownload"
         style={{ objectFit: "contain" }}
@@ -216,7 +216,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
         Your browser does not support video playback.
       </video>
       {/* Enhanced video controls overlay for better visibility and Telegram compatibility */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 to-black/50 p-4 z-10">
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 to-black/50 p-4 z-20">
         {/* Progress bar */}
         <div className="mb-3 w-full bg-white/20 rounded-full h-1.5">
           <div 
@@ -227,7 +227,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
           />
         </div>
         
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Left controls */}
           <div className="flex items-center gap-2">
             <button

@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { initBot, setupWebhook } from "./lib/bot";
+import { initBot, sendComeBackOnlineMessage, setupWebhook } from "./lib/bot";
 
 const rawPort = process.env["PORT"];
 
@@ -33,5 +33,6 @@ app.listen(port, (err) => {
     } else {
       logger.info("RENDER_URL not set — bot webhook not configured (set it after deploying to Render)");
     }
+    void sendComeBackOnlineMessage();
   }
 });

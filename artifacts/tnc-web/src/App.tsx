@@ -11,6 +11,7 @@ import { getTelegramInitData, getTelegramUser, readyTelegramApp, expandTelegramA
 import HomePage from "@/pages/home";
 import CoursesPage from "@/pages/courses";
 import CourseDetailPage from "@/pages/course-detail";
+import SubjectDetailPage from "@/pages/subject-detail";
 import VideosPage from "@/pages/videos";
 import EnotesPage from "@/pages/enotes";
 import AdminPage from "@/pages/admin";
@@ -45,6 +46,7 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/courses" component={CoursesPage} />
+      <Route path="/courses/:courseId/subjects/:subjectId" component={SubjectDetailPage} />
       <Route path="/courses/:courseId" component={CourseDetailPage} />
       <Route path="/videos" component={VideosPage} />
       <Route path="/enotes" component={EnotesPage} />

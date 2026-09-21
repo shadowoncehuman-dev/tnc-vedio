@@ -65,6 +65,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: subjectId
+          in: query
+          required: false
+          schema:
+            type: string
         - name: type
           in: query
           required: false
@@ -84,6 +89,27 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Session"
+
+    /subjects:
+      get:
+        operationId: listSubjects
+        tags: [courses]
+        summary: List learning subjects and dynamic content counts for a course
+        parameters:
+          - name: courseId
+            in: query
+            required: true
+            schema:
+              type: string
+        responses:
+          "200":
+            description: Subjects with video, PDF, and total content counts
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Subject"
 
   /sessions/{rowId}:
     get:
@@ -478,6 +504,33 @@ components:
           type: string
         createdAt:
           type: string
+
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+        rowId:
+          type: string
+        courseId:
+          type: ["string", "null"]
+        name:
+          type: string
+        serialNo:
+          type: string
+        videoCount:
+          type: integer
+        pdfCount:
+          type: integer
+        totalCount:
+          type: integer
+      required:
+        - id
+        - rowId
+        - name
+        - videoCount
+        - pdfCount
+        - totalCount
       required:
         - id
         - rowId

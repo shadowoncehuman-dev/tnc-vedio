@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound } from "lucide-react";
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
@@ -11,6 +11,8 @@ interface LayoutProps {
 }
 
 const TEST_SERIES_URL = "https://test.tncnursing.site/tnc-tests";
+const SUPPORT_URL = "https://t.me/testsagarbot";
+const CHANNEL_URL = "https://t.me/tnc_test_series_free";
 
 type NavItem =
   | { path: string; label: string; icon: React.ElementType; external?: undefined }
@@ -77,32 +79,37 @@ function VisitorGreeting() {
 
   function saveName() {
     const value = draftName.trim().slice(0, 80);
-    if (value) setName(value);
-  }
-
-  if (!name) {
-    return (
-      <section className="mx-auto my-5 flex max-w-6xl flex-col gap-3 border-y border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-4 sm:flex-row sm:items-center sm:justify-between" data-testid="visitor-name-prompt">
-        <div>
-          <p className="font-semibold text-gray-900">What should we call you?</p>
-          <p className="text-xs text-gray-500">We use your name to personalize your study welcome.</p>
-        </div>
-        <div className="flex w-full gap-2 sm:w-auto">
-          <input value={draftName} onChange={(event) => setDraftName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveName(); }} placeholder="Your name" className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 sm:w-48" />
-          <button onClick={saveName} disabled={!draftName.trim()} className="rounded-lg bg-[hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Continue</button>
-        </div>
-      </section>
-    );
+    if (value) {
+      setName(value);
+      window.dispatchEvent(new CustomEvent("tnc-visitor-name-updated", { detail: value }));
+    }
   }
 
   return (
-    <section className="mx-auto my-5 flex max-w-6xl items-center gap-3 px-4" data-testid="visitor-greeting">
-      {waifuUrl && <img src={waifuUrl} alt="Friendly study companion" className="h-12 w-12 rounded-full border-2 border-[hsl(var(--secondary))] object-cover" loading="lazy" />}
-      <div>
-        <p className="text-lg font-black text-gray-900">{getGreeting()}, {name}.</p>
-        <p className="text-sm text-gray-500">Ready for a focused study session?</p>
-      </div>
-    </section>
+    <>
+      {name && (
+        <section className="mx-auto my-5 flex max-w-6xl items-center gap-3 px-4" data-testid="visitor-greeting">
+          {waifuUrl && <img src={waifuUrl} alt="Friendly study companion" className="h-12 w-12 rounded-full border-2 border-[hsl(var(--secondary))] object-cover" loading="lazy" />}
+          <div>
+            <p className="text-lg font-black text-gray-900">{getGreeting()}, {name}.</p>
+            <p className="text-sm text-gray-500">Ready for a focused study session?</p>
+          </div>
+        </section>
+      )}
+      {!name && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-4" role="dialog" aria-modal="true" aria-labelledby="visitor-name-title" data-testid="visitor-name-modal">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600"><UserRound size={23} /></div>
+            <h2 id="visitor-name-title" className="text-center text-xl font-black text-gray-900">Welcome to TNC Nursing</h2>
+            <p className="mt-2 text-center text-sm text-gray-500">Enter your name to continue. We use it for your study greeting and leaderboard.</p>
+            <form onSubmit={(event) => { event.preventDefault(); saveName(); }} className="mt-5 space-y-3">
+              <input autoFocus value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Enter your name" maxLength={80} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500" data-testid="input-visitor-name" />
+              <button type="submit" disabled={!draftName.trim()} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50" data-testid="btn-save-visitor-name">Continue</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -149,11 +156,16 @@ export default function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <img
-                src={`${BASE}/logo.svg`}
+                src={`${BASE}/l1.jpg`}
                 alt="TNC"
-                className="w-10 h-10 object-contain"
+                className="w-10 h-10 rounded-xl object-cover"
                 onError={(e) => {
                   const t = e.target as HTMLImageElement;
+                  if (t.src.endsWith("/l1.jpg")) {
+                    t.src = `${BASE}/logo.svg`;
+                    t.className = "w-10 h-10 object-contain";
+                    return;
+                  }
                   t.style.display = "none";
                   const parent = t.parentElement;
                   if (parent) {
@@ -222,7 +234,7 @@ export default function Layout({ children }: LayoutProps) {
                 </>
               ) : (
                 <a
-                  href="https://t.me/testsagarbot"
+                  href={SUPPORT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors"
@@ -232,6 +244,16 @@ export default function Layout({ children }: LayoutProps) {
                   Support
                 </a>
               )}
+              <a
+                href={CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/15 text-white hover:bg-white/25 transition-colors"
+                data-testid="nav-join-channel"
+              >
+                <Send size={14} />
+                Join Channel
+              </a>
             </div>
           </div>
         </div>
@@ -242,10 +264,18 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
             <img
-              src={`${BASE}/logo.svg`}
+              src={`${BASE}/l1.jpg`}
               alt="TNC"
-              className="w-8 h-8 object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              className="w-8 h-8 rounded-lg object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target.src.endsWith("/l1.jpg")) {
+                  target.src = `${BASE}/logo.svg`;
+                  target.className = "w-8 h-8 object-contain";
+                } else {
+                  target.style.display = "none";
+                }
+              }}
             />
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>
@@ -332,13 +362,23 @@ export default function Layout({ children }: LayoutProps) {
             {/* Support link */}
             <div className="border-t mt-2 pt-2 px-4">
               <a
-                href="https://t.me/testsagarbot"
+                href={SUPPORT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 <MessageCircle size={16} />
                 Contact Admin / Support
+              </a>
+              <a
+                href={CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-1 py-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+                data-testid="mobile-join-channel"
+              >
+                <Send size={16} />
+                Join Channel for Updates
               </a>
             </div>
           </div>

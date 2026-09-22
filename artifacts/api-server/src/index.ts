@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { initBot, sendComeBackOnlineMessage, setupWebhook } from "./lib/bot";
+import { initBot, setupWebhook } from "./lib/bot";
 
 const rawPort = process.env["PORT"];
 
@@ -27,12 +27,11 @@ app.listen(port, (err) => {
   // Initialize Telegram bot
   const botInstance = initBot();
   if (botInstance) {
-    const webhookBaseUrl = process.env.BOT_WEBHOOK_URL ?? process.env.RENDER_URL ?? process.env.PUBLIC_APP_URL ?? "https://courses.tncnursing.site";
-    if (webhookBaseUrl) {
-      void setupWebhook(`${webhookBaseUrl.replace(/\/$/, "")}/api/bot/webhook`);
+    const webhookBaseUrl = process.env.BOT_WEBHOOK_URL ?? process.env.PUBLIC_APP_URL ?? process.env.RENDER_URL;
+    if (!webhookBaseUrl) {
+      logger.warn("Bot webhook not configured. Set BOT_WEBHOOK_URL or PUBLIC_APP_URL.");
     } else {
-      logger.info("RENDER_URL not set — bot webhook not configured (set it after deploying to Render)");
+      void setupWebhook(`${webhookBaseUrl.replace(/\/$/, "")}/api/bot/webhook`);
     }
-    void sendComeBackOnlineMessage();
   }
 });

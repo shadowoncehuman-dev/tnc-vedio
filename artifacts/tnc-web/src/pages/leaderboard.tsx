@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy, Medal, Clock3 } from "lucide-react";
+import { Trophy, Medal, Clock3, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 import { ContentAd } from "@/components/Ads";
 
@@ -19,33 +19,55 @@ function formatStudyTime(seconds: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+function isLeaderboardRow(value: unknown): value is LeaderboardRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<LeaderboardRow>;
+  return typeof row.telegramId === "string" && typeof row.firstName === "string" &&
+    typeof row.seconds === "number" && Number.isFinite(row.seconds) && row.seconds >= 0 &&
+    typeof row.sessions === "number" && Number.isFinite(row.sessions) && row.sessions >= 0;
+}
+
 export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    fetch(`${BASE}/api/bot/study/leaderboard`)
-      .then(async (response) => {
+    const loadLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${BASE}/api/bot/study/leaderboard?limit=100`, { cache: "no-store" });
         if (!response.ok) throw new Error("Failed to load leaderboard");
-        return response.json() as Promise<LeaderboardRow[]>;
-      })
-      .then((data) => {
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) throw new Error("Invalid leaderboard response");
+        const validRows = data.filter(isLeaderboardRow).sort((a, b) => b.seconds - a.seconds);
         if (!active) return;
-        setRows(Array.isArray(data) ? data : []);
+        setRows(validRows);
         setError(false);
-      })
-      .catch(() => {
+        setLastUpdated(new Date());
+      } catch {
         if (!active) return;
         setRows([]);
         setError(true);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, []);
+      }
+    };
+
+    void loadLeaderboard();
+    const refreshTimer = window.setInterval(() => { void loadLeaderboard(); }, 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+    };
+  }, [refreshKey]);
+
+  function retry() {
+    setRefreshKey((value) => value + 1);
+  }
 
   return (
     <Layout>
@@ -69,7 +91,7 @@ export default function LeaderboardPage() {
           <div className="bg-white rounded-2xl border border-red-100 p-12 text-center text-gray-500">
             <Trophy size={42} className="mx-auto text-red-200 mb-3" />
             <p className="font-semibold">Leaderboard is temporarily unavailable</p>
-            <button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
+            <button type="button" onClick={retry} className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
           </div>
         ) : rows.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-500">
@@ -78,7 +100,14 @@ export default function LeaderboardPage() {
             <p className="text-sm text-gray-400 mt-1">Start a lesson and your time will appear here.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <>
+            <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+              <span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+              <button type="button" onClick={retry} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-semibold text-gray-600 hover:bg-gray-50">
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {rows.map((row, index) => (
               <div key={row.telegramId} className="flex items-center gap-3 px-5 py-4 border-b last:border-0 border-gray-50">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
@@ -99,7 +128,8 @@ export default function LeaderboardPage() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
         <ContentAd size="300x250" />
       </div>

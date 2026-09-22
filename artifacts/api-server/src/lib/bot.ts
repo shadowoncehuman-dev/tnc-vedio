@@ -23,7 +23,10 @@ function escapeMarkdownV2(text: string): string {
 
 async function sendWelcomeMessage(ctx: any, user: { id: number; first_name: string; username?: string }) {
   const appUrl = APP_URL;
-  const imageUrl = await getRandomSfwImage();
+  const imageUrl = await Promise.race([
+    getRandomSfwImage(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+  ]);
   
   const welcomeText = `🏥 *Welcome to TNC Nursing Classes!*
 
@@ -90,11 +93,14 @@ export function initBot(): Telegraf | null {
 
   const tgBot = new Telegraf(BOT_TOKEN);
   bot = tgBot;
+  void tgBot.telegram.setMyCommands([
+    { command: "start", description: "Open TNC Nursing Classes" },
+    { command: "help", description: "Show available commands" },
+    { command: "leaderboard", description: "View study leaderboard" },
+  ]).catch((err) => logger.warn({ err }, "Failed to register Telegram commands"));
 
   const appUrl = APP_URL;
   const pendingBroadcasts = new Set<number>();
-  let isBotOnline = true;
-
   // /start — welcome + open mini app button
   tgBot.start(async (ctx) => {
     try {
@@ -122,31 +128,26 @@ export function initBot(): Telegraf | null {
     }
   });
 
-  // /admin — list users studying from bot (admin only)
+  // /admin — show the admin command center (admin only)
   tgBot.command("admin", async (ctx) => {
     try {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       logger.info({ admin: ctx.from?.id }, "/admin requested");
-      
-      // Check if Supabase is configured
-      const { isSupabaseConfigured } = await import("./supabase-server");
-      if (!isSupabaseConfigured()) {
-        await ctx.reply("⚠️ Database not configured. Please check Supabase connection.");
-        return;
-      }
-      
-      const users = await getAllUsers();
-      if (!users.length) { await ctx.reply("No users studying from bot yet"); return; }
-      
-      // Filter users who are actively studying (have study time > 0)
-      const activeUsers = users.filter(u => u.totalStudySeconds > 0);
-      
-      if (!activeUsers.length) { await ctx.reply("No users actively studying from bot yet"); return; }
-      
-      const list = activeUsers.map((u) =>
-        `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\` — ${Math.round(u.totalStudySeconds / 60)} min studying${u.isBanned ? " 🚫" : ""}`,
-      ).join("\n");
-      await ctx.reply(`📚 *Users Studying from Bot:*\n\n${list}`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(
+        "🛡️ TNC Admin Center\n\n" +
+        "📊 /stats - View total, active, and banned users\n" +
+        "👥 /users - List recent users\n" +
+        "📚 /admin - Show this admin menu\n" +
+        "🧾 /user <telegram_id> - View one user\n" +
+        "🚫 /ban <telegram_id> [reason] - Ban a user\n" +
+        "✅ /unban <telegram_id> - Unban a user\n" +
+        "⛔ /banned - List banned users\n" +
+        "🏆 /leaderboard - View study leaderboard\n" +
+        "📣 /broadcast - Send text/media to all users\n" +
+        "🔄 /comeback - Manually send an update message\n" +
+        "❌ /cancel - Cancel a pending broadcast\n\n" +
+        "Use /help for this command list.",
+      );
     } catch (err) {
       logger.error({ err }, "Error in /admin handler");
       try { await ctx.reply("⚠️ Admin command failed. Please check server logs and Supabase connection."); } catch {}
@@ -157,11 +158,10 @@ export function initBot(): Telegraf | null {
   tgBot.help(async (ctx) => {
     const admin = isAdmin(ctx.from?.id);
     const adminCmds = admin
-       ? "\n\n*Admin Commands:*\n/stats — View user stats\n/users — List recent users\n/admin — List users studying from bot\n/ban \\<id\\> \\[reason\\] — Ban a user\n/unban \\<id\\> — Unban a user\n/banned — List banned users\n/leaderboard — Study leaderboard\n/broadcast — Broadcast a message (text, images, videos, photos)\n/comeback — Send message to all users (bot back online)"
+      ? "\n\nAdmin Commands:\n/admin, /stats, /users, /user <id>, /ban <id> [reason], /unban <id>, /banned, /leaderboard, /broadcast, /comeback, /cancel"
       : "";
     await ctx.reply(
-      `*TNC Nursing Classes Bot*\n\n/start — Open the app${adminCmds}`,
-      { parse_mode: "MarkdownV2" },
+      `TNC Nursing Classes Bot\n\n/start - Open the app${adminCmds}`,
     );
   });
 

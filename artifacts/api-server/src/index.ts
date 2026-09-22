@@ -27,11 +27,7 @@ app.listen(port, (err) => {
   // Initialize Telegram bot
   const botInstance = initBot();
   if (botInstance) {
-    const webhookBaseUrl = process.env.BOT_WEBHOOK_URL ?? process.env.PUBLIC_APP_URL ?? process.env.RENDER_URL;
-    if (!webhookBaseUrl) {
-      logger.warn("Bot webhook not configured. Set BOT_WEBHOOK_URL or PUBLIC_APP_URL.");
-    } else {
-      void setupWebhook(`${webhookBaseUrl.replace(/\/$/, "")}/api/bot/webhook`);
-    }
+    const webhookBaseUrl = process.env.BOT_WEBHOOK_URL ?? process.env.PUBLIC_APP_URL ?? "https://courses.tncnursing.site";
+    void setupWebhook(`${webhookBaseUrl.replace(/\/$/, "")}/api/bot/webhook`);
   }
 });

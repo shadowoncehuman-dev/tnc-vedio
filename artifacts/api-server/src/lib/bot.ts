@@ -93,6 +93,9 @@ export function initBot(): Telegraf | null {
 
   const tgBot = new Telegraf(BOT_TOKEN);
   bot = tgBot;
+  tgBot.catch((err, ctx) => {
+    logger.error({ err, updateId: ctx.update.update_id }, "Unhandled Telegram bot update error");
+  });
   void tgBot.telegram.setMyCommands([
     { command: "start", description: "Open TNC Nursing Classes" },
     { command: "help", description: "Show available commands" },
@@ -189,12 +192,14 @@ export function initBot(): Telegraf | null {
 
   // /stats (admin)
   tgBot.command("stats", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    const { total, banned, active } = await getStats();
-    await ctx.reply(
-      `📊 *Bot Stats*\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`,
-      { parse_mode: "MarkdownV2" },
-    );
+    try {
+      if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+      const { total, banned, active } = await getStats();
+      await ctx.reply(`📊 Bot Stats\n\n👥 Total users: ${total}\n✅ Active: ${active}\n🚫 Banned: ${banned}`);
+    } catch (err) {
+      logger.error({ err }, "Error in /stats handler");
+      await ctx.reply("⚠️ Could not load stats. Check the Supabase connection.");
+    }
   });
 
   tgBot.command("user", async (ctx) => {
@@ -216,13 +221,18 @@ export function initBot(): Telegraf | null {
 
   // /users (admin)
   tgBot.command("users", async (ctx) => {
-    if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
-    const users = (await getAllUsers()).slice(0, 15);
-    if (!users.length) { await ctx.reply("No users yet"); return; }
-    const list = users.map((u) =>
-      `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — \`${u.telegramId}\`${u.isBanned ? " 🚫" : ""}`,
-    ).join("\n");
-    await ctx.reply(`👥 *Recent Users:*\n\n${list}`, { parse_mode: "MarkdownV2" });
+    try {
+      if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
+      const users = (await getAllUsers()).slice(0, 15);
+      if (!users.length) { await ctx.reply("No users yet"); return; }
+      const list = users.map((u) =>
+        `• ${u.firstName}${u.lastName ? " " + u.lastName : ""} (@${u.username ?? "—"}) — ${u.telegramId}${u.isBanned ? " 🚫" : ""}`,
+      ).join("\n");
+      await ctx.reply(`👥 Recent Users:\n\n${list}`);
+    } catch (err) {
+      logger.error({ err }, "Error in /users handler");
+      await ctx.reply("⚠️ Could not load users. Check the Supabase connection.");
+    }
   });
 
   // /ban <id> [reason] (admin)

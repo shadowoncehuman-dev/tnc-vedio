@@ -282,9 +282,10 @@ export function initBot(): Telegraf | null {
       const text = rows.map((row, index) =>
         `${index + 1}. ${row.firstName}${row.username ? ` (@${row.username})` : ""} — ${Math.round(row.seconds / 60)} min (${row.sessions} sessions)`,
       ).join("\n");
-      await ctx.reply(`🏆 *Study Leaderboard*\n\n${text}`, { parse_mode: "MarkdownV2" });
-    } catch {
-      await ctx.reply("Leaderboard is unavailable until the Supabase study tables are created.");
+      await ctx.reply(`🏆 Study Leaderboard\n\n${text}`);
+    } catch (err) {
+      logger.error({ err }, "Error in /leaderboard handler");
+      await ctx.reply("⚠️ Leaderboard is temporarily unavailable. Please try again later.");
     }
   });
 
@@ -294,16 +295,35 @@ export function initBot(): Telegraf | null {
     try {
       if (!isAdmin(ctx.from?.id)) { await ctx.reply("❌ Admin only"); return; }
       pendingBroadcasts.add(ctx.from!.id);
-      await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.", { parse_mode: "MarkdownV2" });
+      const commandText = "text" in ctx.message ? ctx.message.text : "";
+      const messageText = commandText.replace(/^\/broadcast(?:@\w+)?\s*/i, "").trim();
+      if (messageText) {
+        pendingBroadcasts.delete(ctx.from!.id);
+        const users = await getAllUsers();
+        const recipients = users.filter((user) => !user.isBanned && user.telegramId !== String(ctx.from!.id));
+        let delivered = 0;
+        let failed = 0;
+        for (const recipient of recipients) {
+          try {
+            await tgBot.telegram.sendMessage(recipient.telegramId, messageText);
+            delivered++;
+          } catch {
+            failed++;
+          }
+        }
+        await ctx.reply(`📣 Broadcast complete.\n✅ Delivered: ${delivered}\n⚠️ Failed: ${failed}`);
+        return;
+      }
+      await ctx.reply("📣 Send the message to broadcast now. Text, image, video, sticker, and emoji are supported.\n\nSend /cancel to stop.");
     } catch (err) {
       logger.error({ err }, "Error initiating broadcast");
-      try { await ctx.reply("⚠️ Could not start broadcast"); } catch {}
+      try { await ctx.reply("⚠️ Could not start broadcast. Check the bot admin configuration and database connection."); } catch {}
     }
   });
 
   tgBot.command("cancel", async (ctx) => {
     if (!isAdmin(ctx.from?.id)) return;
-    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.", { parse_mode: "MarkdownV2" });
+    if (pendingBroadcasts.delete(ctx.from.id)) await ctx.reply("Broadcast cancelled.");
   });
 
   tgBot.on("message", async (ctx) => {

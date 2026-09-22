@@ -48,3 +48,5 @@ services:
         # Used by the Telegram bot to auto-register its webhook on startup.
         # Set this to your Render service URL after first deploy.
         sync: false
+      - key: PUBLIC_APP_URL
+        value: https://courses.tncnursing.site

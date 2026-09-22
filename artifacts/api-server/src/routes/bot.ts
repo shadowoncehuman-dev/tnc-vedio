@@ -50,8 +50,21 @@ router.get("/webhook", async (_req: Request, res: Response): Promise<void> => {
 router.get("/status", async (_req: Request, res: Response): Promise<void> => {
   try {
     const botReady = Boolean(bot);
-    res.json({ ok: true, botInitialized: botReady });
+    const webhook = botReady ? await bot!.telegram.getWebhookInfo() : null;
+    res.json({
+      ok: true,
+      botInitialized: botReady,
+      webhook: webhook
+        ? {
+            configured: Boolean(webhook.url),
+            pendingUpdates: webhook.pending_update_count,
+            lastErrorDate: webhook.last_error_date ?? null,
+            lastErrorMessage: webhook.last_error_message ?? null,
+          }
+        : null,
+    });
   } catch (err) {
+    logger.error({ err }, "Bot status check failed");
     res.status(500).json({ ok: false, error: "Status check failed" });
   }
 });

@@ -296,7 +296,7 @@ function parseChapter(row: Record<string, unknown>) {
     contentType,
     type: finalType,
     courseId: (row.co_refid ?? json._co) as string | null,
-    subjectId: derivedSubject.rowId,
+    subjectId: String(row.su_refid ?? json._su ?? derivedSubject.rowId).trim() || derivedSubject.rowId,
     isPaid: (json._pr_ty as number) === 1,
     duration: null as string | null,
     thumbnailUrl: null as string | null,
@@ -410,12 +410,32 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
   try {
     const { courseId } = req.query;
 
-    const contentData = await crmQuery({
-        fn: "common_fn", se: "fe", sch: "t_ch",
-        data: { json: "*" }, cond: courseId ? { co_refid: courseId } : {},
-    });
+    const cond = courseId ? { co_refid: courseId } : {};
+    const [contentData, subjectData] = await Promise.all([
+      crmQuery({ fn: "common_fn", se: "fe", sch: "t_ch", data: { json: "*" }, cond }),
+      crmQuery({ fn: "common_fn", se: "fe", sch: "t_su", data: { json: "*" }, cond }),
+    ]);
     const subjects: Array<Record<string, unknown> & { rowId: string; name: string; videoCount: number; pdfCount: number; totalCount: number }> = [];
-    const subjectById = new Map(subjects.map((subject) => [subject.rowId, subject]));
+    const subjectById = new Map<string, (typeof subjects)[number]>();
+    if (Array.isArray(subjectData)) {
+      for (const row of subjectData as Record<string, unknown>[]) {
+        const json = (row.json as Record<string, unknown>) ?? {};
+        const rowId = String(row.row_id ?? "").trim();
+        if (!rowId) continue;
+        const subject = {
+          id: row.id,
+          rowId,
+          courseId: typeof courseId === "string" ? courseId : row.co_refid ?? null,
+          name: String(json._na ?? "Subject"),
+          serialNo: String(json._sno ?? ""),
+          videoCount: 0,
+          pdfCount: 0,
+          totalCount: 0,
+        };
+        subjects.push(subject);
+        subjectById.set(rowId, subject);
+      }
+    }
     if (Array.isArray(contentData)) {
       for (const row of contentData as Record<string, unknown>[]) {
         const parsed = parseChapter(row);

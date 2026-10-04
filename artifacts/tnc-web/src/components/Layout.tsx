@@ -4,7 +4,6 @@ import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight,
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
-import { AdSlot } from "@/components/Ads";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,21 +29,6 @@ const navItems: NavItem[] = [
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 const VISITOR_NAME_KEY = "tnc_visitor_name";
 const VISITOR_ID_KEY = "tnc_visitor_id";
-
-function ResponsiveAd() {
-  const [size, setSize] = useState<"468x60" | "320x50" | "728x90">("320x50");
-
-  useEffect(() => {
-    const sync = () => {
-      setSize(window.matchMedia("(min-width: 1024px)").matches ? "728x90" : window.matchMedia("(min-width: 768px)").matches ? "468x60" : "320x50");
-    };
-    sync();
-    window.addEventListener("resize", sync);
-    return () => window.removeEventListener("resize", sync);
-  }, []);
-
-  return <AdSlot size={size} />;
-}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -118,7 +102,6 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const admin = isAdmin();
-  const showAds = location !== "/" && !/^\/(watch|videos|pdf|quiz)(\/|$)/.test(location);
 
   useEffect(() => {
     const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -389,11 +372,6 @@ export default function Layout({ children }: LayoutProps) {
       <main className="study-grid flex-1">
         <VisitorGreeting />
         {children}
-        {showAds && (
-          <div className="pb-8 pt-2">
-            <ResponsiveAd />
-          </div>
-        )}
       </main>
 
       {/* Mobile Bottom Tabs */}

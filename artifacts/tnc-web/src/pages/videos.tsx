@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useGetCourses, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey } from "@/lib/api-client";
-import { Video, Lock, PlayCircle, Search, BookOpen, ChevronRight, ArrowRight } from "lucide-react";
+import { Video, Lock, PlayCircle, Search, BookOpen, ChevronRight, ArrowRight, History, Trash2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
+import { clearWatchedVideos, getWatchedVideos, type WatchedVideo } from "@/lib/streak";
 import { motion } from "framer-motion";
 
 export default function VideosPage() {
   const user = getUser();
   const [search, setSearch] = useState("");
+  const [watchedVideos, setWatchedVideos] = useState<WatchedVideo[]>(getWatchedVideos);
+
+  useEffect(() => {
+    const refresh = () => setWatchedVideos(getWatchedVideos());
+    window.addEventListener("tnc-watched-videos-updated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("tnc-watched-videos-updated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
 
   const { data: courses, isLoading } = useGetCourses();
   const { data: promo } = useGetPromoStatus();
@@ -60,6 +72,34 @@ export default function VideosPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {watchedVideos.length > 0 && (
+          <section className="mb-9" aria-labelledby="recently-watched-title">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <History size={18} className="text-blue-600" />
+                <h2 id="recently-watched-title" className="text-base font-bold text-gray-900">Recently watched</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => clearWatchedVideos()}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-600"
+                aria-label="Clear watch history"
+              >
+                <Trash2 size={14} /> Clear history
+              </button>
+            </div>
+            <div className="divide-y divide-gray-100 border-y border-gray-100">
+              {watchedVideos.slice(0, 6).map((watched) => (
+                <Link key={watched.sessionId} href={`/watch/${watched.sessionId}`} className="flex items-center gap-3 py-3 hover:bg-blue-50/60">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><PlayCircle size={18} /></span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{watched.title}</span>
+                  <span className="shrink-0 text-xs text-gray-400">{new Date(watched.watchedAt).toLocaleDateString()}</span>
+                  <ChevronRight size={15} className="shrink-0 text-gray-400" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
         <p className="text-xs text-gray-500 mb-5 font-medium uppercase tracking-wide">Select a course to browse its videos</p>
 
         {isLoading ? (

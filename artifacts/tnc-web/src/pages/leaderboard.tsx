@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Trophy, Medal, Clock3, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
-import { ContentAd } from "@/components/Ads";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -131,7 +130,6 @@ export default function LeaderboardPage() {
             </div>
           </>
         )}
-        <ContentAd size="300x250" />
       </div>
     </Layout>
   );

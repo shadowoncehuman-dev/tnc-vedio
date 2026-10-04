@@ -6,6 +6,14 @@ interface StreakData {
   lastStudyDate: string | null;
   completedVideos: Record<string, string[]>;
   completedQuizzes: Record<string, string[]>;
+  watchedVideos: Record<string, WatchedVideo>;
+}
+
+export interface WatchedVideo {
+  sessionId: string;
+  title: string;
+  courseId: string | null;
+  watchedAt: string;
 }
 
 function today(): string {
@@ -22,7 +30,8 @@ function load(): StreakData {
   try {
     const raw = localStorage.getItem(STREAK_KEY);
     if (!raw) return defaultData();
-    return JSON.parse(raw) as StreakData;
+    const data = JSON.parse(raw) as Partial<StreakData>;
+    return { ...defaultData(), ...data, watchedVideos: data.watchedVideos ?? {} };
   } catch {
     return defaultData();
   }
@@ -35,6 +44,7 @@ function defaultData(): StreakData {
     lastStudyDate: null,
     completedVideos: {},
     completedQuizzes: {},
+    watchedVideos: {},
   };
 }
 
@@ -66,15 +76,34 @@ function recalcStreak(data: StreakData): StreakData {
   return data;
 }
 
-export function markVideoWatched(sessionId: string) {
+export function markVideoWatched(sessionId: string, details?: { title?: string; courseId?: string | null }) {
   const data = load();
   const t = today();
   if (!data.completedVideos[t]) data.completedVideos[t] = [];
   if (!data.completedVideos[t].includes(sessionId)) {
     data.completedVideos[t].push(sessionId);
     recalcStreak(data);
-    save(data);
   }
+  const existing = data.watchedVideos[sessionId];
+  data.watchedVideos[sessionId] = {
+    sessionId,
+    title: details?.title || existing?.title || sessionId,
+    courseId: details?.courseId ?? existing?.courseId ?? null,
+    watchedAt: new Date().toISOString(),
+  };
+  save(data);
+  window.dispatchEvent(new Event("tnc-watched-videos-updated"));
+}
+
+export function getWatchedVideos(): WatchedVideo[] {
+  return Object.values(load().watchedVideos ?? {}).sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+}
+
+export function clearWatchedVideos() {
+  const data = load();
+  data.watchedVideos = {};
+  save(data);
+  window.dispatchEvent(new Event("tnc-watched-videos-updated"));
 }
 
 export function markQuizCompleted(examId: string) {

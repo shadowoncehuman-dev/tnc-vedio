@@ -555,6 +555,13 @@ export default function WatchPage() {
     return () => window.clearInterval(timer);
   }, [isUnlocked, sessionId, user?.name, visitorName]);
 
+  useEffect(() => {
+    if (!session || !isUnlocked || !sessionId) return;
+    const contentType = session.contentType ?? (session.videoUrl ? "youtube" : "none");
+    if (contentType !== "youtube" && contentType !== "firebase" && !session.videoUrl) return;
+    markVideoWatched(sessionId, { title: session.title, courseId: session.courseId ?? null });
+  }, [isUnlocked, session, sessionId]);
+
   if (isLoading) {
     return (
       <Layout>

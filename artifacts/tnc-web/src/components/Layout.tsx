@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound, History } from "lucide-react";
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
@@ -20,6 +20,7 @@ type NavItem =
 const navItems: NavItem[] = [
   { path: "/", label: "Home", icon: Home },
   { path: "/videos", label: "Videos", icon: Video },
+  { path: "/watched", label: "Watched", icon: History },
   { path: "/quiz", label: "Quiz", icon: Brain, external: TEST_SERIES_URL },
   { path: "/enotes", label: "E-Notes", icon: FileText },
   { path: "/leaderboard", label: "Leaderboard", icon: Trophy },

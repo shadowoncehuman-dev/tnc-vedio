@@ -7,12 +7,19 @@ interface StreakData {
   completedVideos: Record<string, string[]>;
   completedQuizzes: Record<string, string[]>;
   watchedVideos: Record<string, WatchedVideo>;
+  watchedCourses: Record<string, WatchedCourse>;
 }
 
 export interface WatchedVideo {
   sessionId: string;
   title: string;
   courseId: string | null;
+  watchedAt: string;
+}
+
+export interface WatchedCourse {
+  courseId: string;
+  name: string;
   watchedAt: string;
 }
 
@@ -31,7 +38,12 @@ function load(): StreakData {
     const raw = localStorage.getItem(STREAK_KEY);
     if (!raw) return defaultData();
     const data = JSON.parse(raw) as Partial<StreakData>;
-    return { ...defaultData(), ...data, watchedVideos: data.watchedVideos ?? {} };
+    return {
+      ...defaultData(),
+      ...data,
+      watchedVideos: data.watchedVideos ?? {},
+      watchedCourses: data.watchedCourses ?? {},
+    };
   } catch {
     return defaultData();
   }
@@ -45,6 +57,7 @@ function defaultData(): StreakData {
     completedVideos: {},
     completedQuizzes: {},
     watchedVideos: {},
+    watchedCourses: {},
   };
 }
 
@@ -99,9 +112,28 @@ export function getWatchedVideos(): WatchedVideo[] {
   return Object.values(load().watchedVideos ?? {}).sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
 }
 
+export function markCourseVisited(courseId: string, name: string) {
+  const data = load();
+  data.watchedCourses[courseId] = { courseId, name, watchedAt: new Date().toISOString() };
+  save(data);
+  window.dispatchEvent(new Event("tnc-watched-videos-updated"));
+}
+
+export function getWatchedCourses(): WatchedCourse[] {
+  return Object.values(load().watchedCourses ?? {}).sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+}
+
 export function clearWatchedVideos() {
   const data = load();
   data.watchedVideos = {};
+  save(data);
+  window.dispatchEvent(new Event("tnc-watched-videos-updated"));
+}
+
+export function clearWatchHistory() {
+  const data = load();
+  data.watchedVideos = {};
+  data.watchedCourses = {};
   save(data);
   window.dispatchEvent(new Event("tnc-watched-videos-updated"));
 }

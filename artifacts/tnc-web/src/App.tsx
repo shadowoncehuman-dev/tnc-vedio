@@ -13,6 +13,7 @@ import CoursesPage from "@/pages/courses";
 import CourseDetailPage from "@/pages/course-detail";
 import SubjectDetailPage from "@/pages/subject-detail";
 import VideosPage from "@/pages/videos";
+import WatchedPage from "@/pages/watched";
 import EnotesPage from "@/pages/enotes";
 import AdminPage from "@/pages/admin";
 import WatchPage from "@/pages/watch";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/courses/:courseId/subjects/:subjectId" component={SubjectDetailPage} />
       <Route path="/courses/:courseId" component={CourseDetailPage} />
       <Route path="/videos" component={VideosPage} />
+      <Route path="/watched" component={WatchedPage} />
       <Route path="/enotes" component={EnotesPage} />
       <Route path="/leaderboard" component={LeaderboardPage} />
       <Route path="/quiz" component={TestSeriesRedirect} />

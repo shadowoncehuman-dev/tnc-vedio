@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toggleFavorite, isFavorite } from "@/lib/streak";
+import { toggleFavorite, isFavorite, markCourseVisited } from "@/lib/streak";
 import StudyEmptyState from "@/components/StudyEmptyState";
 import { customFetch } from "@/lib/api-client";
 
@@ -40,6 +40,10 @@ export default function CourseDetailPage() {
     query: { enabled: !!user, queryKey: getGetUserPurchasesQueryKey(user?.userId ?? "") },
   });
   const isCourseUnlocked = Boolean(promo?.enabled) || (Array.isArray(purchases) && purchases.some((purchase) => purchase.courseId === courseId));
+
+  useEffect(() => {
+    if (courseId && course?.name) markCourseVisited(courseId, course.name);
+  }, [course, courseId]);
 
   function handleFav() {
     if (!courseId) return;

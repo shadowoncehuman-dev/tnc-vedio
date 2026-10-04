@@ -473,7 +473,7 @@ function CoursePlaylist({ courseId, currentSessionId }: { courseId: string; curr
       <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
         {displaySessions.map((s) => {
           const isCurrent = s.rowId === currentSessionId;
-          const isVideo = s.contentType === "youtube" || s.videoUrl;
+          const isVideo = s.contentType === "youtube" || s.contentType === "firebase" || s.videoUrl;
           const isPdf = s.contentType === "pdf" || s.pdfUrl;
           const href = isVideo
             ? `/watch/${s.rowId}`

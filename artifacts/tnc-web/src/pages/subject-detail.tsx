@@ -169,7 +169,7 @@ export default function SubjectDetailPage() {
                 </div>
               ) : (
                 <Link key={session.rowId} href={href} className="group flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${pdf ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-600"}`}>{pdf ? <FileText size={19} /> : <PlayCircle size={19} />}</div>
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${pdf && !video ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-600"}`}>{pdf && !video ? <FileText size={19} /> : <PlayCircle size={19} />}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-gray-900">{index + 1}. {session.title}</p><p className="text-xs text-gray-400">{typeLabel} · {session.isPaid ? "Premium" : "Free"}</p></div>
                   <ChevronRight size={17} className="shrink-0 text-gray-300 transition-colors group-hover:text-blue-600" />
                 </Link>

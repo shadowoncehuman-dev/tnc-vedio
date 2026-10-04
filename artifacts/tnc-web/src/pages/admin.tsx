@@ -140,6 +140,118 @@ function StudentsDirectory() {
   );
 }
 
+type MobileAdminStats = {
+  installs: number;
+  opensToday: number;
+  opensWeek: number;
+  opensTotal: number;
+  activeToday: number;
+  lessonsCompleted: number;
+};
+
+type MobileAdminUser = {
+  id: string;
+  name: string;
+  platform: string;
+  firstSeen: string;
+  lastSeen: string;
+  isBlocked: boolean;
+  blockedReason: string | null;
+};
+
+function MobileAppAnalytics() {
+  const [stats, setStats] = useState<MobileAdminStats | null>(null);
+  const [users, setUsers] = useState<MobileAdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function refresh() {
+    setLoading(true);
+    setError("");
+    try {
+      const headers = { "x-admin-token": getAdminToken() ?? "" };
+      const [statsResponse, usersResponse] = await Promise.all([
+        fetch(`${BASE}/api/mobile/admin/stats`, { headers }),
+        fetch(`${BASE}/api/mobile/admin/users?limit=100`, { headers }),
+      ]);
+      if (!statsResponse.ok || !usersResponse.ok) throw new Error("Mobile analytics could not be loaded.");
+      const nextStats = await statsResponse.json() as MobileAdminStats;
+      const nextUsers = await usersResponse.json() as { users: MobileAdminUser[] };
+      setStats(nextStats);
+      setUsers(nextUsers.users);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Mobile analytics could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void refresh(); }, []);
+
+  async function toggleBlock(user: MobileAdminUser) {
+    try {
+      const action = user.isBlocked ? "unblock" : "block";
+      const response = await fetch(`${BASE}/api/mobile/admin/users/${encodeURIComponent(user.id)}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": getAdminToken() ?? "" },
+        body: JSON.stringify({ reason: "Blocked by admin" }),
+      });
+      if (!response.ok) throw new Error("Access update failed.");
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Access update failed.");
+    }
+  }
+
+  const metrics: Array<[string, keyof MobileAdminStats]> = [
+    ["First opens / installs", "installs"],
+    ["Opens today", "opensToday"],
+    ["Opens · 7 days", "opensWeek"],
+    ["Opens all time", "opensTotal"],
+    ["Active today", "activeToday"],
+    ["Lessons completed", "lessonsCompleted"],
+  ];
+
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Mobile App · TNC Nursing 2.0</h2>
+          <p className="text-sm text-gray-500">Real opens and anonymous installs recorded by the app API.</p>
+        </div>
+        <button onClick={() => void refresh()} disabled={loading} className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1.5 disabled:opacity-50">
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
+        </button>
+      </div>
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error} Run the SQL in `docs/mobile-app-supabase.sql` if the tables are not created.</p>}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {metrics.map(([label, key]) => <div key={key} className="border border-gray-100 bg-gray-50 p-4">
+          <div className="text-2xl font-black text-gray-900">{loading ? "…" : (stats?.[key] ?? 0).toLocaleString()}</div>
+          <div className="text-xs text-gray-500 mt-1">{label}</div>
+        </div>)}
+      </div>
+      <p className="text-xs text-gray-500">Store downloads are not visible to the app server; “installs” counts distinct devices after their first app open. No raw IP, phone, or hardware fingerprint is collected.</p>
+      <div>
+        <h3 className="font-bold text-gray-900 mb-2">Mobile users <span className="text-gray-400 font-normal">({users.length})</span></h3>
+        {users.length === 0 && !loading ? <p className="text-sm text-gray-500 py-4">No mobile users have opened the app yet.</p> : (
+          <div className="divide-y divide-gray-100">
+            {users.map((user) => <div key={user.id} className="flex items-center gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-sm text-gray-900 truncate">{user.name || "Student"} {user.isBlocked && <span className="text-red-600">· Blocked</span>}</div>
+                <div className="text-xs text-gray-500">{user.platform} · last active {new Date(user.lastSeen).toLocaleDateString()}</div>
+                <div className="text-[10px] text-gray-400">Install ID: {user.id}</div>
+              </div>
+              <button onClick={() => void toggleBlock(user)} className={`px-3 py-1.5 text-xs font-semibold ${user.isBlocked ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                {user.isBlocked ? "Unblock" : "Block"}
+              </button>
+            </div>)}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const adminLogin = useAdminLogin();
   const { toast } = useToast();
@@ -418,6 +530,8 @@ function AdminDashboard() {
 
             {/* Free Period Manager */}
             <PromoManager />
+
+            <MobileAppAnalytics />
 
             <StudentsDirectory />
 

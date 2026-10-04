@@ -9,9 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -25,21 +31,21 @@
       "short_name": "Courses",
       "description": "Browse all nursing courses",
       "url": "/courses",
-      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "E-Notes",
       "short_name": "E-Notes",
       "description": "Access PDF study notes",
       "url": "/enotes",
-      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Test Series",
       "short_name": "Tests",
       "description": "Practice mock tests",
       "url": "/quiz",
-      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

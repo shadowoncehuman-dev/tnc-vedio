@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { findMobileUser, isValidInstallId } from "./lib/mobile-store";
 
 const app: Express = express();
 
@@ -30,6 +31,29 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/api", async (req, res, next) => {
+  const installId = req.header("x-tnc-install-id");
+  if (!installId || req.path === "/mobile/open") {
+    next();
+    return;
+  }
+  if (!isValidInstallId(installId)) {
+    res.status(400).json({ error: "Invalid mobile install ID" });
+    return;
+  }
+  try {
+    const user = await findMobileUser(installId);
+    if (user?.is_blocked) {
+      res.status(403).json({ error: user.blocked_reason ?? "This app installation is blocked" });
+      return;
+    }
+    next();
+  } catch (err) {
+    logger.error({ err }, "Mobile install access check failed");
+    res.status(503).json({ error: "Mobile access check is temporarily unavailable" });
+  }
+});
 
 app.use("/api", router);
 

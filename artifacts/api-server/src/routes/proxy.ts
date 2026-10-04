@@ -262,11 +262,11 @@ function parseChapter(row: Record<string, unknown>) {
     if (contentType === "none") contentType = "pdf";
   }
 
-  // E-notes must remain PDF-first even when the CRM row also contains a
-  // preview/video field. The PDF route should never send a learner to video.
+  // Keep PDF-only entries PDF-first, but retain Firebase video classification
+  // when a CRM row contains both a video ID and a PDF.
   if (pdfUrl) {
     videoUrl = null;
-    contentType = "pdf";
+    if (!hasFirebaseId) contentType = "pdf";
   }
 
   // AGGRESSIVE: If no videoUrl but we have a pdfCandidate (even if not valid URL), treat as PDF
@@ -279,7 +279,7 @@ function parseChapter(row: Record<string, unknown>) {
   }
 
   // Determine final type
-  const finalType = videoUrl
+  const finalType = videoUrl || hasFirebaseId
     ? "video"
     : pdfUrl || hasPdfData
       ? "pdf"
@@ -457,8 +457,10 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
           subjectById.set(subject.rowId, subject);
         }
         subject.totalCount += 1;
-        if (parsed.pdfUrl || parsed.contentType === "pdf") subject.pdfCount += 1;
-        else subject.videoCount += 1;
+        const hasPdf = Boolean(parsed.pdfUrl) || parsed.contentType === "pdf";
+        const hasVideo = parsed.contentType === "youtube" || parsed.contentType === "firebase" || Boolean(parsed.videoUrl);
+        if (hasPdf) subject.pdfCount += 1;
+        if (hasVideo || !hasPdf) subject.videoCount += 1;
       }
     }
     subjects.sort((a, b) => {
@@ -640,7 +642,7 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
 
     // Filter by content type if requested
     if (type === "video") {
-      sessions = sessions.filter((s) => s.contentType === "youtube" || s.videoUrl);
+      sessions = sessions.filter((s) => s.contentType === "youtube" || s.contentType === "firebase" || s.videoUrl);
     } else if (type === "pdf") {
       sessions = sessions.filter((s) => s.contentType === "pdf" || s.pdfUrl);
     }

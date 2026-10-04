@@ -140,25 +140,9 @@ export default function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <img
-                src={`${BASE}/l1.jpg`}
-                alt="TNC"
-                className="w-10 h-10 rounded-xl object-cover"
-                onError={(e) => {
-                  const t = e.target as HTMLImageElement;
-                  if (t.src.endsWith("/l1.jpg")) {
-                    t.src = `${BASE}/logo.svg`;
-                    t.className = "w-10 h-10 object-contain";
-                    return;
-                  }
-                  t.style.display = "none";
-                  const parent = t.parentElement;
-                  if (parent) {
-                    const div = document.createElement("div");
-                    div.className = "w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-white text-lg";
-                    div.textContent = "T";
-                    parent.insertBefore(div, t);
-                  }
-                }}
+                src={`${BASE}/logo.svg`}
+                alt="TNC Nursing Classes"
+                className="h-10 w-10 rounded-xl bg-white p-1 object-contain"
               />
               <div className="text-white">
                 <div className="font-black text-base leading-none tracking-tight">TNC / NURSING</div>
@@ -248,18 +232,9 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
             <img
-              src={`${BASE}/l1.jpg`}
-              alt="TNC"
-              className="w-8 h-8 rounded-lg object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                if (target.src.endsWith("/l1.jpg")) {
-                  target.src = `${BASE}/logo.svg`;
-                  target.className = "w-8 h-8 object-contain";
-                } else {
-                  target.style.display = "none";
-                }
-              }}
+              src={`${BASE}/logo.svg`}
+              alt="TNC Nursing Classes"
+              className="h-8 w-8 rounded-lg bg-white p-0.5 object-contain"
             />
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>

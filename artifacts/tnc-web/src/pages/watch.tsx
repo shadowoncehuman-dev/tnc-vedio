@@ -1,10 +1,10 @@
 import { useParams, Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { useGetSession, useGetPromoStatus, useGetUserPurchases, getGetUserPurchasesQueryKey, useListSessions, getListSessionsQueryKey } from "@/lib/api-client";
-import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2, Maximize, Settings, Volume2, Clock, X, SkipBack, SkipForward, VolumeX, Volume1, RotateCw, RotateCcw } from "lucide-react";
+import { ArrowLeft, Lock, Video, FileText, AlertCircle, ChevronRight, PlayCircle, Loader2, Maximize, Settings, Volume2, Clock, X, SkipBack, SkipForward, VolumeX, Volume1, RotateCw, RotateCcw, CheckCircle2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
-import { markVideoWatched } from "@/lib/streak";
+import { isVideoCompleted, markVideoWatched, toggleVideoCompleted } from "@/lib/streak";
 import { getTelegramUser } from "@/lib/telegram";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -512,6 +512,7 @@ export default function WatchPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const user = getUser();
   const [visitorName, setVisitorName] = useState(() => localStorage.getItem("tnc_visitor_name") ?? "");
+  const [isCompleted, setIsCompleted] = useState(() => Boolean(sessionId && isVideoCompleted(sessionId)));
 
   const { data: session, isLoading } = useGetSession(sessionId ?? "");
   const { data: promo } = useGetPromoStatus();
@@ -522,6 +523,17 @@ export default function WatchPage() {
   const purchasedIds = new Set((Array.isArray(purchases) ? purchases : []).map((p) => p.courseId));
   const isCourseUnlocked = promo?.enabled || (!!session?.courseId && purchasedIds.has(session.courseId));
   const isUnlocked = !session?.isPaid || isCourseUnlocked;
+
+  useEffect(() => {
+    const syncCompletion = () => setIsCompleted(Boolean(sessionId && isVideoCompleted(sessionId)));
+    syncCompletion();
+    window.addEventListener("tnc-watched-videos-updated", syncCompletion);
+    window.addEventListener("storage", syncCompletion);
+    return () => {
+      window.removeEventListener("tnc-watched-videos-updated", syncCompletion);
+      window.removeEventListener("storage", syncCompletion);
+    };
+  }, [sessionId]);
 
   useEffect(() => {
     const handleVisitorNameUpdated = (event: Event) => {
@@ -587,6 +599,7 @@ export default function WatchPage() {
   }
 
   const contentType = session.contentType ?? (session.videoUrl ? "youtube" : "none");
+  const isVideoContent = contentType === "youtube" || contentType === "firebase" || Boolean(session.videoUrl);
   const backHref = session.courseId ? `/courses/${session.courseId}` : "/courses";
 
   const firebaseId = (session as unknown as Record<string, unknown>).firebaseId as string | null ?? null;
@@ -615,12 +628,33 @@ export default function WatchPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {contentType === "youtube" && session.videoUrl ? (
-                  <VideoPlayer session={{ ...session, videoUrl: session.videoUrl ?? null }} sessionId={sessionId ?? ""} />
+                {isVideoContent ? (
+                  <div className="relative">
+                    {contentType === "youtube" && session.videoUrl ? (
+                      <VideoPlayer session={{ ...session, videoUrl: session.videoUrl ?? null }} sessionId={sessionId ?? ""} />
+                    ) : contentType === "firebase" && firebaseId ? (
+                      <FsVideoPlayer firebaseId={firebaseId} title={session.title} />
+                    ) : (
+                      <NoContentCard title={session.title} />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsCompleted(toggleVideoCompleted(sessionId ?? "", { title: session.title, courseId: session.courseId ?? null }))}
+                      aria-pressed={isCompleted}
+                      aria-label={isCompleted ? "Mark lecture incomplete" : "Mark lecture complete"}
+                      className={`absolute right-3 top-3 z-30 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold shadow-lg transition-colors ${
+                        isCompleted
+                          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "bg-white/95 text-gray-800 hover:bg-white"
+                      }`}
+                      data-testid="btn-toggle-lecture-complete"
+                    >
+                      <CheckCircle2 size={17} />
+                      {isCompleted ? "Completed" : "Mark complete"}
+                    </button>
+                  </div>
                 ) : contentType === "pdf" && session.pdfUrl ? (
                   <PdfViewer url={session.pdfUrl} title={session.title} />
-                ) : contentType === "firebase" && firebaseId ? (
-                  <FsVideoPlayer firebaseId={firebaseId} title={session.title} />
                 ) : (
                   <NoContentCard title={session.title} />
                 )}

@@ -189,6 +189,49 @@
   --sidebar-ring: 226 71% 65%;
 }
 
+.dark body {
+  color-scheme: dark;
+}
+
+.dark .bg-white {
+  background-color: hsl(var(--card));
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: hsl(var(--muted));
+}
+
+.dark .bg-blue-50 {
+  background-color: hsl(220 40% 16%);
+}
+
+.dark .bg-emerald-50 {
+  background-color: hsl(160 35% 15%);
+}
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500 {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: hsl(var(--border));
+}
+
+.dark .divide-gray-100 > :not(:last-child),
+.dark .divide-gray-200 > :not(:last-child) {
+  border-color: hsl(var(--border));
+}
+
 * {
   box-sizing: border-box;
 }

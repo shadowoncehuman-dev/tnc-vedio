@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { BookOpen, ChevronRight, Clock3, History, PlayCircle, Search, Trash2 } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronRight, Clock3, History, PlayCircle, Search, Trash2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import StudyEmptyState from "@/components/StudyEmptyState";
 import { useGetCourses } from "@/lib/api-client";
 import { clearWatchHistory, getWatchedCourses, getWatchedVideos, type WatchedCourse, type WatchedVideo } from "@/lib/streak";
 
-type HistoryTab = "all" | "videos" | "courses";
+type HistoryTab = "all" | "videos" | "completed" | "courses";
 
 interface HistoryEntry {
   id: string;
@@ -14,6 +14,7 @@ interface HistoryEntry {
   title: string;
   description: string;
   watchedAt: string;
+  completed: boolean;
   href: string;
 }
 
@@ -42,7 +43,8 @@ export default function WatchedPage() {
     kind: "video",
     title: video.title,
     description: video.courseId ? courseNames.get(video.courseId) ?? "Video lecture" : "Video lecture",
-    watchedAt: video.watchedAt,
+    watchedAt: video.completedAt ?? video.watchedAt,
+    completed: Boolean(video.completedAt),
     href: `/watch/${video.sessionId}`,
   }));
   const courseEntries: HistoryEntry[] = history.courses.map((course) => ({
@@ -51,13 +53,21 @@ export default function WatchedPage() {
     title: courseNames.get(course.courseId) ?? course.name,
     description: "Course visited",
     watchedAt: course.watchedAt,
+    completed: false,
     href: `/courses/${course.courseId}`,
   }));
   const allEntries = [...videoEntries, ...courseEntries].sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
-  const tabEntries = tab === "videos" ? videoEntries : tab === "courses" ? courseEntries : allEntries;
+  const tabEntries = tab === "videos"
+    ? videoEntries
+    : tab === "completed"
+      ? videoEntries.filter((entry) => entry.completed)
+      : tab === "courses"
+        ? courseEntries
+        : allEntries;
   const query = search.trim().toLowerCase();
   const visibleEntries = tabEntries.filter((entry) => `${entry.title} ${entry.description}`.toLowerCase().includes(query));
   const totalEntries = history.videos.length + history.courses.length;
+  const completedCount = history.videos.filter((video) => video.completedAt).length;
 
   function clearHistory() {
     if (window.confirm("Clear your watched videos and course history?")) clearWatchHistory();
@@ -76,15 +86,16 @@ export default function WatchedPage() {
       </div>
 
       <div className="mx-auto max-w-5xl px-4 py-7">
-        <section className="mb-7 grid grid-cols-3 divide-x divide-gray-200 border-y border-gray-200 py-4" aria-label="Study history totals">
+        <section className="mb-7 grid grid-cols-2 divide-x divide-gray-200 border-y border-gray-200 py-4 sm:grid-cols-4" aria-label="Study history totals">
           <div className="px-3 text-center sm:text-left"><p className="text-xl font-black text-gray-900">{history.videos.length}</p><p className="text-xs text-gray-500">Videos watched</p></div>
+          <div className="px-3 text-center sm:text-left"><p className="text-xl font-black text-emerald-700">{completedCount}</p><p className="text-xs text-gray-500">Lectures completed</p></div>
           <div className="px-3 text-center sm:text-left"><p className="text-xl font-black text-gray-900">{history.courses.length}</p><p className="text-xs text-gray-500">Courses visited</p></div>
           <div className="px-3 text-center sm:text-left"><p className="text-xl font-black text-gray-900">{totalEntries}</p><p className="text-xs text-gray-500">Total activities</p></div>
         </section>
 
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex w-fit gap-1 border-b border-gray-200" role="tablist" aria-label="History type">
-            {(["all", "videos", "courses"] as const).map((value) => (
+            {(["all", "videos", "completed", "courses"] as const).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -93,7 +104,7 @@ export default function WatchedPage() {
                 onClick={() => setTab(value)}
                 className={`border-b-2 px-3 py-2 text-sm font-semibold capitalize transition-colors ${tab === value ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-800"}`}
               >
-                {value === "all" ? "Activity" : value}
+                {value === "all" ? "Activity" : value === "completed" ? "Completed" : value}
               </button>
             ))}
           </div>
@@ -128,7 +139,10 @@ export default function WatchedPage() {
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${entry.kind === "video" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-700"}`}><Icon size={19} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-gray-900">{entry.title}</span>
-                    <span className="mt-0.5 block truncate text-xs text-gray-500">{entry.description}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-gray-500">
+                      {entry.description}
+                      {entry.completed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700"><CheckCircle2 size={12} /> Completed</span>}
+                    </span>
                   </span>
                   <span className="hidden shrink-0 items-center gap-1.5 text-xs text-gray-400 sm:flex"><Clock3 size={13} />{new Date(entry.watchedAt).toLocaleString()}</span>
                   <ChevronRight size={16} className="shrink-0 text-gray-300 group-hover:text-blue-600" />
@@ -136,6 +150,8 @@ export default function WatchedPage() {
               );
             })}
           </div>
+        ) : tab === "completed" && !search.trim() ? (
+          <StudyEmptyState title="No completed lectures yet" message="Mark a lecture complete from its video page and it will appear here." />
         ) : totalEntries ? (
           <StudyEmptyState title="No matching history" message="Try another search or switch history tabs." />
         ) : (

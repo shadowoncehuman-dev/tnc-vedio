@@ -6,6 +6,7 @@ interface StreakData {
   lastStudyDate: string | null;
   completedVideos: Record<string, string[]>;
   completedQuizzes: Record<string, string[]>;
+  completedLectures: Record<string, { completedAt: string; title: string; courseId: string | null }>;
   watchedVideos: Record<string, WatchedVideo>;
   watchedCourses: Record<string, WatchedCourse>;
 }
@@ -15,6 +16,7 @@ export interface WatchedVideo {
   title: string;
   courseId: string | null;
   watchedAt: string;
+  completedAt?: string;
 }
 
 export interface WatchedCourse {
@@ -41,6 +43,7 @@ function load(): StreakData {
     return {
       ...defaultData(),
       ...data,
+      completedLectures: data.completedLectures ?? {},
       watchedVideos: data.watchedVideos ?? {},
       watchedCourses: data.watchedCourses ?? {},
     };
@@ -56,6 +59,7 @@ function defaultData(): StreakData {
     lastStudyDate: null,
     completedVideos: {},
     completedQuizzes: {},
+    completedLectures: {},
     watchedVideos: {},
     watchedCourses: {},
   };
@@ -109,7 +113,42 @@ export function markVideoWatched(sessionId: string, details?: { title?: string; 
 }
 
 export function getWatchedVideos(): WatchedVideo[] {
-  return Object.values(load().watchedVideos ?? {}).sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+  const data = load();
+  return Object.values(data.watchedVideos ?? {})
+    .map((video) => ({
+      ...video,
+      completedAt: data.completedLectures[video.sessionId]?.completedAt,
+    }))
+    .sort((a, b) => b.watchedAt.localeCompare(a.watchedAt));
+}
+
+export function isVideoCompleted(sessionId: string): boolean {
+  return Boolean(load().completedLectures[sessionId]);
+}
+
+export function toggleVideoCompleted(sessionId: string, details: { title: string; courseId?: string | null }): boolean {
+  const data = load();
+  const existing = data.completedLectures[sessionId];
+  if (existing) {
+    delete data.completedLectures[sessionId];
+  } else {
+    const completedAt = new Date().toISOString();
+    data.completedLectures[sessionId] = {
+      completedAt,
+      title: details.title,
+      courseId: details.courseId ?? null,
+    };
+    const watched = data.watchedVideos[sessionId];
+    data.watchedVideos[sessionId] = {
+      sessionId,
+      title: details.title || watched?.title || sessionId,
+      courseId: details.courseId ?? watched?.courseId ?? null,
+      watchedAt: watched?.watchedAt ?? completedAt,
+    };
+  }
+  save(data);
+  window.dispatchEvent(new Event("tnc-watched-videos-updated"));
+  return !existing;
 }
 
 export function markCourseVisited(courseId: string, name: string) {
@@ -126,6 +165,7 @@ export function getWatchedCourses(): WatchedCourse[] {
 export function clearWatchedVideos() {
   const data = load();
   data.watchedVideos = {};
+  data.completedLectures = {};
   save(data);
   window.dispatchEvent(new Event("tnc-watched-videos-updated"));
 }
@@ -134,6 +174,7 @@ export function clearWatchHistory() {
   const data = load();
   data.watchedVideos = {};
   data.watchedCourses = {};
+  data.completedLectures = {};
   save(data);
   window.dispatchEvent(new Event("tnc-watched-videos-updated"));
 }

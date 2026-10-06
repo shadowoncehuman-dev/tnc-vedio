@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound, History } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound, History, Moon, Sun } from "lucide-react";
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 const VISITOR_NAME_KEY = "tnc_visitor_name";
 const VISITOR_ID_KEY = "tnc_visitor_id";
+const DARK_MODE_KEY = "tnc-dark-mode";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -102,7 +103,27 @@ export default function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem(DARK_MODE_KEY) === "true");
   const admin = isAdmin();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
+  }, [darkMode]);
+
+  useEffect(() => {
+    const syncTheme = (event: StorageEvent) => {
+      if (event.key === DARK_MODE_KEY) setDarkMode(event.newValue === "true");
+    };
+    window.addEventListener("storage", syncTheme);
+    return () => window.removeEventListener("storage", syncTheme);
+  }, []);
+
+  function toggleDarkMode() {
+    const next = !darkMode;
+    localStorage.setItem(DARK_MODE_KEY, String(next));
+    setDarkMode(next);
+  }
 
   useEffect(() => {
     const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -181,6 +202,17 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Admin link */}
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                aria-pressed={darkMode}
+                data-testid="btn-theme-toggle"
+              >
+                {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+                {darkMode ? "Light mode" : "Dark mode"}
+              </button>
               {admin ? (
                 <>
                   <Link
@@ -239,6 +271,16 @@ export default function Layout({ children }: LayoutProps) {
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="text-white p-1.5 rounded-lg bg-white/15"
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              aria-pressed={darkMode}
+              data-testid="btn-theme-toggle"
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <button
               onClick={toggleFullscreen}
               className="text-white p-1.5 rounded-lg bg-white/15"

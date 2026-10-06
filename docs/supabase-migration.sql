@@ -117,7 +117,9 @@ select
   coalesce(sum(s.seconds), 0)::integer as seconds,
   coalesce(count(s.id), 0)::integer as sessions
 from public.bot_users u
-left join public.study_sessions s on s.telegram_id = u.telegram_id
+left join public.study_sessions s
+  on s.telegram_id = u.telegram_id
+  and s.study_date >= date_trunc('week', current_date)::date
 where u.is_banned = false
 group by u.telegram_id, u.first_name, u.username
 union all
@@ -128,6 +130,7 @@ select
   sum(seconds)::integer as seconds,
   count(*)::integer as sessions
 from public.website_study_sessions
+where study_date >= date_trunc('week', current_date)::date
 group by visitor_id
 order by seconds desc;
 

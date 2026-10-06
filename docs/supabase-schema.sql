@@ -66,7 +66,9 @@ select
   u.username,
   coalesce(sum(s.seconds), 0)::integer as seconds
 from public.bot_users u
-join public.study_sessions s on s.telegram_id = u.telegram_id
+join public.study_sessions s
+  on s.telegram_id = u.telegram_id
+  and s.study_date >= date_trunc('week', current_date)::date
 where u.is_banned = false
 group by u.telegram_id, u.first_name, u.username
 order by seconds desc;

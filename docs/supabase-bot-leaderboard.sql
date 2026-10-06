@@ -115,6 +115,7 @@ end;
 $$;
 
 -- Recreate the view so both Telegram users and website visitors appear.
+-- Rankings automatically reset at the start of each Monday-based week.
 drop view if exists public.study_leaderboard;
 create view public.study_leaderboard as
 select
@@ -124,7 +125,9 @@ select
   coalesce(sum(s.seconds), 0)::integer as seconds,
   count(s.id)::integer as sessions
 from public.bot_users u
-left join public.study_sessions s on s.telegram_id = u.telegram_id
+left join public.study_sessions s
+  on s.telegram_id = u.telegram_id
+  and s.study_date >= date_trunc('week', current_date)::date
 where u.is_banned = false
 group by u.telegram_id, u.first_name, u.username
 union all
@@ -135,6 +138,7 @@ select
   coalesce(sum(w.seconds), 0)::integer as seconds,
   count(w.id)::integer as sessions
 from public.website_study_sessions w
+where w.study_date >= date_trunc('week', current_date)::date
 group by w.visitor_id
 order by seconds desc;
 

@@ -1,8 +1,7 @@
 -- Apply once to reset leaderboard rankings automatically each Monday.
 -- Historical study sessions are preserved; only this view's totals are weekly.
 
-drop view if exists public.study_leaderboard;
-create view public.study_leaderboard as
+create or replace view public.study_leaderboard as
 select
   'telegram_' || u.telegram_id::text as participant_id,
   coalesce(nullif(trim(u.first_name), ''), 'Telegram Student') as first_name,
@@ -26,5 +25,3 @@ from public.website_study_sessions w
 where w.study_date >= date_trunc('week', current_date)::date
 group by w.visitor_id
 order by seconds desc;
-
-revoke all on table public.study_leaderboard from anon, authenticated;

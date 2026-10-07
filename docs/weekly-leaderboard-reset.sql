@@ -1,5 +1,13 @@
--- Apply once to reset leaderboard rankings automatically each Monday.
--- Historical study sessions are preserved; only this view's totals are weekly.
+-- Run once to clear this week's leaderboard stats and enable Monday resets.
+-- Study history before this week and lifetime bot-user totals are preserved.
+
+begin;
+
+delete from public.study_sessions
+where study_date >= date_trunc('week', current_date)::date;
+
+delete from public.website_study_sessions
+where study_date >= date_trunc('week', current_date)::date;
 
 create or replace view public.study_leaderboard as
 select
@@ -25,3 +33,5 @@ from public.website_study_sessions w
 where w.study_date >= date_trunc('week', current_date)::date
 group by w.visitor_id
 order by seconds desc;
+
+commit;

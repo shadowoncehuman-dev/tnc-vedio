@@ -12,6 +12,25 @@ import {
 import { recordStudyHeartbeat, recordWebsiteStudyHeartbeat, getLeaderboard } from "../lib/study-store";
 
 const router = Router();
+const processedWebhookUpdates = new Map<number, number>();
+const webhookUpdateTtlMs = 24 * 60 * 60 * 1000;
+const maxCachedWebhookUpdates = 10_000;
+
+function isDuplicateWebhookUpdate(updateId: number): boolean {
+  const expiredBefore = Date.now() - webhookUpdateTtlMs;
+  for (const [cachedId, processedAt] of processedWebhookUpdates) {
+    if (processedAt > expiredBefore) break;
+    processedWebhookUpdates.delete(cachedId);
+  }
+  if (processedWebhookUpdates.has(updateId)) return true;
+  processedWebhookUpdates.set(updateId, Date.now());
+  while (processedWebhookUpdates.size > maxCachedWebhookUpdates) {
+    const oldestId = processedWebhookUpdates.keys().next().value;
+    if (oldestId === undefined) break;
+    processedWebhookUpdates.delete(oldestId);
+  }
+  return false;
+}
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 
@@ -28,14 +47,24 @@ function requireAdmin(req: Request, res: Response): boolean {
 
 // POST /api/bot/webhook — Telegram sends updates here
 router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
+  let webhookUpdateId: number | undefined;
   try {
     if (!bot) {
       res.status(503).json({ error: "Bot not initialized" });
       return;
     }
+    const updateId = req.body?.update_id;
+    if (Number.isInteger(updateId)) {
+      webhookUpdateId = updateId;
+      if (isDuplicateWebhookUpdate(updateId)) {
+        res.json({ ok: true, duplicate: true });
+        return;
+      }
+    }
     await bot.handleUpdate(req.body);
     res.json({ ok: true });
   } catch (err) {
+    if (webhookUpdateId !== undefined) processedWebhookUpdates.delete(webhookUpdateId);
     logger.error({ err }, "Bot webhook error");
     res.status(500).json({ error: "Webhook error" });
   }

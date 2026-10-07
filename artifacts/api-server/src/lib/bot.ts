@@ -181,8 +181,8 @@ export function initBot(): Telegraf | null {
         return;
       }
       
-      await sendComeBackOnlineMessage();
-      await ctx.reply("✅ Come back online message sent to all active users!");
+      await ctx.reply("✅ Come back online notification queued for active users.");
+      void sendComeBackOnlineMessage();
       
     } catch (err) {
       logger.error({ err }, "Error in /comeback handler");
@@ -216,7 +216,7 @@ export function initBot(): Telegraf | null {
       `Reason: ${user.bannedReason ?? "—"}`,
       `Study Time: ${Math.round(user.totalStudySeconds / 60)} min`,
     ].join("\n");
-    await ctx.reply(`🧾 *User Details*\n\n${details}`, { parse_mode: "MarkdownV2" });
+    await ctx.reply(`User Details\n\n${details}`);
   });
 
   // /users (admin)
@@ -244,9 +244,9 @@ export function initBot(): Telegraf | null {
     if (!targetId) { await ctx.reply("Usage: /ban <telegram_id> [reason]"); return; }
     const ok = await banUser(targetId, reason);
     if (ok) {
-      await ctx.reply(`✅ User \`${targetId}\` banned.\nReason: ${reason}`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`✅ User ${targetId} banned.\nReason: ${reason}`);
     } else {
-      await ctx.reply(`⚠️ User \`${targetId}\` not found in store. They must open the app first.`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`⚠️ User ${targetId} not found in store. They must open the app first.`);
     }
   });
 
@@ -257,9 +257,9 @@ export function initBot(): Telegraf | null {
     if (!targetId) { await ctx.reply("Usage: /unban <telegram_id>"); return; }
     const ok = await unbanUser(targetId);
     if (ok) {
-      await ctx.reply(`✅ User \`${targetId}\` unbanned.`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`✅ User ${targetId} unbanned.`);
     } else {
-      await ctx.reply(`⚠️ User \`${targetId}\` not found in store.`, { parse_mode: "MarkdownV2" });
+      await ctx.reply(`⚠️ User ${targetId} not found in store.`);
     }
   });
 
@@ -269,9 +269,9 @@ export function initBot(): Telegraf | null {
     const banned = (await getAllUsers()).filter((u) => u.isBanned);
     if (!banned.length) { await ctx.reply("No banned users"); return; }
     const text = banned.map((u) =>
-      `• ${u.firstName} (@${u.username ?? "—"}) — \`${u.telegramId}\`\n  Reason: ${u.bannedReason ?? "none"}`,
+      `• ${u.firstName} (@${u.username ?? "—"}) — ${u.telegramId}\n  Reason: ${u.bannedReason ?? "none"}`,
     ).join("\n\n");
-    await ctx.reply(`🚫 *Banned Users:*\n\n${text}`, { parse_mode: "MarkdownV2" });
+    await ctx.reply(`🚫 Banned Users:\n\n${text}`);
   });
 
   tgBot.command("leaderboard", async (ctx) => {

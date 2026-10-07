@@ -180,6 +180,12 @@ export function initBot(): Telegraf | null {
         await ctx.reply("⚠️ Database not configured. Please check Supabase connection.");
         return;
       }
+
+      const { claimComebackNotification } = await import("./broadcast");
+      if (!(await claimComebackNotification())) {
+        await ctx.reply("A come back online notification was already sent in the last 24 hours.");
+        return;
+      }
       
       await ctx.reply("✅ Come back online notification queued for active users.");
       void sendComeBackOnlineMessage();

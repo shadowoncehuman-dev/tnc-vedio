@@ -5,6 +5,12 @@ function ensureClient() {
   return getSupabaseAdmin();
 }
 
+export async function claimComebackNotification(): Promise<boolean> {
+  const { data, error } = await ensureClient().rpc("claim_bot_comeback_notification");
+  if (error) throw error;
+  return data === true;
+}
+
 export async function logBroadcast(input: {
   adminTelegramId: number;
   contentType: string;

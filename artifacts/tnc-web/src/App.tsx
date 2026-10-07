@@ -16,7 +16,7 @@ import VideosPage from "@/pages/videos";
 import WatchedPage from "@/pages/watched";
 import EnotesPage from "@/pages/enotes";
 import AdminPage from "@/pages/admin";
-import LectureUnavailablePage from "@/pages/lecture-unavailable";
+import WatchPage from "@/pages/watch";
 import PdfViewerPage from "@/pages/pdf-viewer";
 import NotFound from "@/pages/not-found";
 import LeaderboardPage from "@/pages/leaderboard";
@@ -96,7 +96,7 @@ function Router() {
       <Route path="/quiz" component={TestSeriesRedirect} />
       <Route path="/quiz/:examId" component={TestSeriesRedirect} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/watch/:sessionId" component={LectureUnavailablePage} />
+      <Route path="/watch/:sessionId" component={WatchPage} />
       <Route path="/pdf/:sessionId" component={PdfViewerPage} />
       <Route component={NotFound} />
     </Switch>

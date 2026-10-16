@@ -6,6 +6,8 @@ import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { clearWatchedVideos, getWatchedVideos, type WatchedVideo } from "@/lib/streak";
 import { motion } from "framer-motion";
+import CoursePrice from "@/components/CoursePrice";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
 
 export default function VideosPage() {
   const user = getUser();
@@ -135,7 +137,7 @@ export default function VideosPage() {
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100 group flex flex-col h-full">
                     <div className="relative h-40 overflow-hidden bg-gradient-to-br from-blue-900 to-indigo-900">
                       <img
-                        src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
+                        src={BATCH_THUMBNAIL_URL}
                         alt={course.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
@@ -155,6 +157,7 @@ export default function VideosPage() {
                       {course.description && course.description !== "Description" && (
                         <p className="text-xs text-gray-500 line-clamp-2 mb-2">{course.description}</p>
                       )}
+                      <CoursePrice price={course.price} />
                       <div className="flex gap-2 mt-auto pt-3">
                         <Link
                           href={`/courses/${course.rowId}`}

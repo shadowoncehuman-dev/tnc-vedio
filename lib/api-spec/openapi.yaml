@@ -455,6 +455,8 @@ components:
           type: string
         description:
           type: string
+        price:
+          type: string
         serialNo:
           type: string
         imageUrl:

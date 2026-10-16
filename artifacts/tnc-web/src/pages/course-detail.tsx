@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toggleFavorite, isFavorite, markCourseVisited } from "@/lib/streak";
 import StudyEmptyState from "@/components/StudyEmptyState";
 import { customFetch } from "@/lib/api-client";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
 
 type Subject = {
   rowId: string;
@@ -22,6 +23,7 @@ export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const user = getUser();
   const [isFav, setIsFav] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     if (courseId) setIsFav(isFavorite("courses", courseId));
@@ -96,12 +98,26 @@ export default function CourseDetailPage() {
           </div>
           <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-48 h-32 md:h-36 rounded-xl overflow-hidden flex-shrink-0">
-              <img src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg" alt={course.name} className="w-full h-full object-cover" />
+              <img src={BATCH_THUMBNAIL_URL} alt={course.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
               <h1 className="text-xl md:text-2xl font-black mb-2">{course.name}</h1>
               {course.description && course.description !== "Description" && (
-                <p className="text-white/70 text-sm leading-relaxed mb-3">{course.description}</p>
+                <>
+                  <p className={`text-white/75 text-sm leading-relaxed mb-1 whitespace-pre-line ${descriptionExpanded ? "" : "line-clamp-3"}`}>
+                    {course.description}
+                  </p>
+                  {course.description.length > 220 && (
+                    <button
+                      type="button"
+                      onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+                      className="mb-3 text-xs font-semibold text-white underline decoration-white/50 underline-offset-2 hover:text-white/80"
+                      aria-expanded={descriptionExpanded}
+                    >
+                      {descriptionExpanded ? "Show less" : "Read full description"}
+                    </button>
+                  )}
+                </>
               )}
               <p className="text-sm text-white/80">Browse the batch by subject and keep each subject&apos;s learning content together.</p>
             </div>

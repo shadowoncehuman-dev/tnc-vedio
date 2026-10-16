@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound, History, Moon, Sun } from "lucide-react";
+import { BookOpen, Video, FileText, Home, LogOut, Shield, Menu, X, ChevronRight, Brain, Trophy, Maximize2, Minimize2, MessageCircle, Send, UserRound, History, Moon, Sun, Snowflake } from "lucide-react";
 import { getUser, isAdmin, clearAdminToken } from "@/lib/auth";
 import { openExternalLink } from "@/lib/telegram";
 import { getTelegramUser } from "@/lib/telegram";
 import TncLoginPrompt from "@/components/TncLoginPrompt";
+import { useWinterEffects } from "@/components/WinterEffectsProvider";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -104,6 +105,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem(DARK_MODE_KEY) === "true");
+  const { enabled: winterEffectsEnabled, toggle: toggleWinterEffects } = useWinterEffects();
   const admin = isAdmin();
 
   useEffect(() => {
@@ -153,18 +155,17 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "hsl(var(--background))" }}>
+    <div className="winter-season min-h-screen flex flex-col" style={{ backgroundColor: "hsl(var(--background))" }}>
       {/* Desktop Top Nav */}
       <header className="sticky top-0 z-50 hidden border-b border-white/10 bg-[hsl(var(--primary))] shadow-lg md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <img
-                src={`${BASE}/logo.svg`}
-                alt="TNC Nursing Classes"
-                className="h-10 w-10 rounded-xl bg-white p-1 object-contain"
-              />
+              <span className="winter-brand-mark" aria-hidden="true">
+                <img src={`${BASE}/logo.svg`} alt="" className="winter-brand-logo" />
+                <Snowflake size={13} className="winter-brand-snow" />
+              </span>
               <div className="text-white">
                 <div className="font-black text-base leading-none tracking-tight">TNC / NURSING</div>
                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/60">Study desk</div>
@@ -212,6 +213,17 @@ export default function Layout({ children }: LayoutProps) {
               >
                 {darkMode ? <Sun size={15} /> : <Moon size={15} />}
                 {darkMode ? "Light mode" : "Dark mode"}
+              </button>
+              <button
+                type="button"
+                onClick={toggleWinterEffects}
+                className="winter-effect-toggle"
+                title={winterEffectsEnabled ? "Turn snowfall off" : "Turn snowfall on"}
+                aria-label={winterEffectsEnabled ? "Turn snowfall off" : "Turn snowfall on"}
+                aria-pressed={winterEffectsEnabled}
+                data-testid="btn-winter-effects"
+              >
+                <Snowflake size={16} />
               </button>
               {admin ? (
                 <>
@@ -263,11 +275,10 @@ export default function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[hsl(var(--primary))] shadow-lg md:hidden">
         <div className="flex items-center justify-between h-14 px-4">
           <Link href="/" className="flex items-center gap-2">
-            <img
-              src={`${BASE}/logo.svg`}
-              alt="TNC Nursing Classes"
-              className="h-8 w-8 rounded-lg bg-white p-0.5 object-contain"
-            />
+            <span className="winter-brand-mark winter-brand-mark--mobile" aria-hidden="true">
+              <img src={`${BASE}/logo.svg`} alt="" className="winter-brand-logo" />
+              <Snowflake size={11} className="winter-brand-snow" />
+            </span>
             <span className="text-white font-black text-sm tracking-tight">TNC / NURSING</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -340,6 +351,23 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               );
             })}
+            <div className="mx-4 my-2 flex items-center justify-between border-y border-sky-100/70 py-2.5">
+              <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                <Snowflake size={18} className="text-sky-600" />
+                Winter snowfall
+              </div>
+              <button
+                type="button"
+                onClick={toggleWinterEffects}
+                className={`winter-switch ${winterEffectsEnabled ? "is-on" : ""}`}
+                role="switch"
+                aria-checked={winterEffectsEnabled}
+                aria-label="Toggle winter snowfall"
+                data-testid="btn-winter-effects-mobile"
+              >
+                <span />
+              </button>
+            </div>
             {admin && (
               <div className="border-t mt-2 pt-2 px-4 space-y-1">
                 <Link

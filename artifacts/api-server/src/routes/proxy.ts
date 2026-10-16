@@ -3,7 +3,8 @@ import { logger } from "../lib/logger";
 import { getCachedFirebaseVideoUrl, isFirebaseConfigured, isUserAuthConfigured, isServiceAccountConfigured, signInWithEmailPassword, streamFirebaseVideo } from "../lib/firebase-rest";
 import { authenticateAppUser, createAppUser, findAppUser, listAppUsers } from "../lib/app-user-store";
 import { getStats as getBotStats } from "../lib/user-store";
-import { TncApiError, TncLoginRequiredError, getSharedTncSession, loginSharedTncStudent, resetTncDeviceAndLogin, tncProtectedRequest, tncPublicRequest } from "../lib/tnc-session";
+import { invalidateAdminDirectoryCache, listAdminDirectoryUsers } from "../lib/admin-directory";
+import { TncApiError, TncLoginRequiredError, getSharedTncSessionStatus, loginSharedTncStudent, resetTncDeviceAndLogin, tncProtectedRequest, tncPublicRequest } from "../lib/tnc-session";
 
 const router = Router();
 
@@ -18,6 +19,16 @@ function requireAdmin(req: Request, res: Response): boolean {
     res.status(401).json({ error: "Unauthorized" });
     return false;
   }
+  return true;
+}
+
+function sendTncLoginRequired(res: Response, error: unknown): boolean {
+  if (!(error instanceof TncLoginRequiredError)) return false;
+  res.status(428).json({
+    error: error.reason === "expired" ? "TNC session expired" : "TNC login required",
+    code: "TNC_LOGIN_REQUIRED",
+    reason: error.reason,
+  });
   return true;
 }
 
@@ -49,6 +60,26 @@ function buildMediaUrl(path: string | undefined | null): string | null {
   return `${CRM_BASE}/${path.replace(/^\//, "")}`;
 }
 
+function courseDescriptionText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/\\x3c/gi, "<")
+    .replace(/\\x3e/gi, ">")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:div|p|li|h[1-6])\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;|&#x0*a0;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
 function parseCourse(row: Record<string, unknown>) {
   const json = typeof row.json === "string" ? JSON.parse(row.json) as Record<string, unknown> : (row.json as Record<string, unknown>) ?? {};
   const at = (json._at as Record<string, unknown>) ?? {};
@@ -56,7 +87,8 @@ function parseCourse(row: Record<string, unknown>) {
     id: row.id,
     rowId: row.row_id,
     name: json._na ?? "",
-    description: json._de ?? "",
+    description: courseDescriptionText(json._de),
+    price: String(json._pr ?? ""),
     serialNo: json._sno ?? "",
     imageUrl: buildMediaUrl(at.url as string),
     createdAt: row.cr_on as string,
@@ -398,10 +430,7 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
     });
     res.json(courses);
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch courses");
     res.status(500).json({ error: "Failed to fetch courses" });
   }
@@ -483,10 +512,7 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
     });
     res.json(subjects);
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch subjects");
     res.status(500).json({ error: "Failed to fetch subjects" });
   }
@@ -627,10 +653,7 @@ router.get("/notes", async (req: Request, res: Response): Promise<void> => {
     const limit = courseId ? sessions.length : Math.min(parseInt(String(limitParam ?? "60")), 200);
     res.json(sessions.slice(0, limit));
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch notes");
     res.status(500).json({ error: "Failed to fetch notes" });
   }
@@ -710,10 +733,7 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
 
     res.json(sessions);
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch sessions");
     res.status(500).json({ error: "Failed to fetch sessions" });
   }
@@ -730,10 +750,7 @@ router.get("/sessions/:rowId", async (req: Request, res: Response): Promise<void
     }
     res.json(parseChapter((data as Record<string, unknown>[])[0]));
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch session");
     res.status(500).json({ error: "Failed to fetch session" });
   }
@@ -772,10 +789,7 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ courses, sessions: [], quizzes });
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Search failed");
     res.status(500).json({ error: "Search failed" });
   }
@@ -818,8 +832,7 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
 // Shared upstream TNC student session used by course and test-series requests.
 router.get("/tnc/auth/session", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const session = await getSharedTncSession();
-    res.json({ available: Boolean(session), expiresAt: session?.expires_at ?? null });
+    res.json(await getSharedTncSessionStatus());
   } catch (err) {
     logger.error({ err }, "Failed to read shared TNC session");
     res.status(503).json({ error: "TNC session storage is unavailable" });
@@ -834,6 +847,7 @@ router.post("/tnc/auth/login", async (req: Request, res: Response): Promise<void
   }
   try {
     await loginSharedTncStudent(mobile, password);
+    invalidateAdminDirectoryCache();
     res.json({ available: true });
   } catch (err) {
     if (err instanceof TncApiError && err.message === "Already Logged In") {
@@ -870,6 +884,7 @@ router.post("/tnc/auth/reset-device", async (req: Request, res: Response): Promi
   }
   try {
     await resetTncDeviceAndLogin(mobile, password, otp);
+    invalidateAdminDirectoryCache();
     res.json({ available: true });
   } catch (err) {
     logger.warn({ err }, "TNC device reset failed");
@@ -972,11 +987,10 @@ router.get("/admin/users", async (req: Request, res: Response): Promise<void> =>
   try {
     const search = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
     const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 25));
-    const allUsers = await listAppUsers();
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const { users: allUsers, unavailableSources } = await listAdminDirectoryUsers();
     const filtered = search
-      ? allUsers.filter((user) => [user.name, user.mobile, user.email, user.college, user.state]
-        .some((value) => value?.toLowerCase().includes(search)))
+      ? allUsers.filter((user) => JSON.stringify(user).toLowerCase().includes(search))
       : allUsers;
     const start = (page - 1) * limit;
     res.json({
@@ -984,7 +998,9 @@ router.get("/admin/users", async (req: Request, res: Response): Promise<void> =>
       total: filtered.length,
       page,
       limit,
-      credentials: { revealable: false, reason: "Passwords are stored as one-way hashes and cannot be recovered." },
+      sources: { app: "Registered accounts", telegram: "Telegram users", mobile: "Mobile installs", crm: "CRM users" },
+      unavailableSources,
+      redactedFields: ["passwords", "tokens", "secrets", "credentials", "API keys", "OTPs"],
     });
   } catch (err) {
     logger.error({ err }, "Failed to fetch app students");
@@ -1115,10 +1131,7 @@ router.get("/quizzes", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ quizzes: paged.map(parseExam), total, page, limit });
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch quizzes");
     res.status(500).json({ error: "Failed to fetch quizzes" });
   }
@@ -1171,10 +1184,7 @@ router.get("/quiz/:examId", async (req: Request, res: Response): Promise<void> =
       questions,
     });
   } catch (err) {
-    if (err instanceof TncLoginRequiredError) {
-      res.status(428).json({ error: "TNC login required", code: "TNC_LOGIN_REQUIRED" });
-      return;
-    }
+    if (sendTncLoginRequired(res, err)) return;
     logger.error({ err }, "Failed to fetch quiz");
     res.status(500).json({ error: "Failed to fetch quiz" });
   }

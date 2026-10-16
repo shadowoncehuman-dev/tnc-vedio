@@ -6,6 +6,7 @@ import { ApiError, customFetch } from "@/lib/api-client/custom-fetch";
 interface TncSessionStatus {
   available: boolean;
   expiresAt: string | null;
+  reason?: "missing" | "expired" | null;
 }
 
 function requestBody<T>(url: string, body: Record<string, string>): Promise<T> {
@@ -48,13 +49,17 @@ export default function TncLoginPrompt({ enabled }: { enabled: boolean }) {
   }, [enabled, sessionQuery.data]);
 
   useEffect(() => {
-    const requireLogin = () => {
+    if (!enabled) return;
+    const requireLoginWithReason = (event: Event) => {
+      const reason = (event as CustomEvent<{ reason?: string }>).detail?.reason;
       setOpen(true);
-      setErrorMessage("The shared TNC session expired. Sign in again to continue.");
+      setErrorMessage(reason === "expired"
+        ? "The shared TNC session expired. Sign in again to continue."
+        : "Sign in with a TNC Nursing account. This shared session will serve visitors until it expires.");
       void queryClient.setQueryData(["tnc-shared-session"], { available: false, expiresAt: null });
     };
-    window.addEventListener("tnc-session-required", requireLogin);
-    return () => window.removeEventListener("tnc-session-required", requireLogin);
+    window.addEventListener("tnc-session-required", requireLoginWithReason);
+    return () => window.removeEventListener("tnc-session-required", requireLoginWithReason);
   }, [enabled, queryClient]);
 
   async function completeLogin() {
@@ -66,7 +71,14 @@ export default function TncLoginPrompt({ enabled }: { enabled: boolean }) {
     setErrorMessage("");
     setNotice("");
     queryClient.setQueryData<TncSessionStatus>(["tnc-shared-session"], { available: true, expiresAt: null });
-    await queryClient.invalidateQueries();
+    await queryClient.invalidateQueries({
+      predicate: (query) => {
+        const error = query.state.error;
+        return error instanceof ApiError && error.status === 428 &&
+          error.data !== null && typeof error.data === "object" &&
+          (error.data as Record<string, unknown>).code === "TNC_LOGIN_REQUIRED";
+      },
+    });
   }
 
   async function login(event: FormEvent<HTMLFormElement>) {

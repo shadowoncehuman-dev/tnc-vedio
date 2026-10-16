@@ -1,0 +1,1 @@
+export const BATCH_THUMBNAIL_URL = "https://temp.tncnursing.site/zxkai-thumbnail.webp";

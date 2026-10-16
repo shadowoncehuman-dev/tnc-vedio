@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import Layout from "@/components/Layout";
 import { getStreakData } from "@/lib/streak";
 import { getUser } from "@/lib/auth";
+import CoursePrice from "@/components/CoursePrice";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
 
 function SliderCarousel() {
   const { data: sliders, isLoading } = useGetSliders();
@@ -91,7 +93,7 @@ function StreakWidget() {
       animate={{ opacity: 1, y: 0 }}
       className="mx-4 my-4 max-w-5xl md:mx-auto"
     >
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-5 text-white shadow-lg">
+      <div className="winter-streak-panel rounded-2xl p-5 text-white shadow-lg">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
@@ -142,7 +144,7 @@ function StreakWidget() {
   );
 }
 
-function CourseCard({ course }: { course: { id: number; rowId: string; name: string; description: string; imageUrl?: string | null; createdAt?: string } }) {
+function CourseCard({ course }: { course: { id: number; rowId: string; name: string; description: string; price?: string; imageUrl?: string | null; createdAt?: string } }) {
   const isNew = course.createdAt
     ? (Date.now() - new Date(course.createdAt).getTime()) / (1000 * 60 * 60 * 24) <= 30
     : false;
@@ -151,11 +153,11 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 300 }}
-      className="group overflow-hidden border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-[4px_4px_0_hsl(165_48%_24%_/_0.12)] transition-shadow hover:shadow-[7px_7px_0_hsl(71_68%_53%_/_0.7)]"
+      className="winter-frosted-panel group overflow-hidden shadow-[4px_4px_0_hsl(165_48%_24%_/_0.12)] transition-shadow hover:shadow-[0_18px_42px_rgba(31,92,119,0.18)]"
     >
       <div className="relative h-44 overflow-hidden bg-[hsl(var(--muted))]">
         <img
-          src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
+          src={BATCH_THUMBNAIL_URL}
           alt={course.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -171,18 +173,13 @@ function CourseCard({ course }: { course: { id: number; rowId: string; name: str
         {course.description && course.description !== "" && course.description !== "Description" && (
           <p className="text-xs text-gray-500 line-clamp-2 mb-3">{course.description}</p>
         )}
+        <CoursePrice price={course.price} />
         <div className="flex gap-2 mt-3">
           <Link
             href={`/courses/${course.rowId}`}
             className="flex-1 text-center py-2 px-3 text-xs font-semibold text-white tnc-brand-gradient hover:opacity-90 transition-opacity"
           >
             View Course
-          </Link>
-          <Link
-            href="/buy"
-            className="flex-1 text-center py-2 px-3 text-xs font-semibold border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors"
-          >
-            Enroll
           </Link>
         </div>
       </div>
@@ -246,8 +243,8 @@ export default function HomePage() {
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="relative mx-auto w-full max-w-md">
             <div className="absolute -right-3 -top-3 h-full w-full border border-[hsl(var(--secondary))]" />
-            <div className="relative bg-[hsl(var(--card))] p-3 text-[hsl(var(--foreground))] editorial-shadow">
-              <div className="relative h-64 overflow-hidden bg-[hsl(var(--muted))] md:h-80">
+            <div className="winter-frosted-panel relative p-3 text-[hsl(var(--foreground))] editorial-shadow">
+              <div className="winter-hero-image relative h-64 overflow-hidden bg-[hsl(var(--muted))] md:h-80">
                 <img src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg" alt="Nursing study material" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4 text-white">

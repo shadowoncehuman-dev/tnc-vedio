@@ -2,6 +2,7 @@ import { supabaseRequest } from "./supabase-rest";
 
 const TNC_API_URL = "https://crm.tncnursing.in/common/";
 const SHARED_SESSION_ID = "shared";
+const SESSION_CACHE_MS = 10_000;
 
 interface SharedTncSession {
   id: string;
@@ -10,11 +11,22 @@ interface SharedTncSession {
 }
 
 export class TncLoginRequiredError extends Error {
-  constructor() {
+  readonly reason: "missing" | "expired";
+
+  constructor(reason: "missing" | "expired" = "expired") {
     super("TNC login required");
     this.name = "TncLoginRequiredError";
+    this.reason = reason;
   }
 }
+
+interface SharedSessionStatus {
+  session: SharedTncSession | null;
+  reason: "missing" | "expired" | null;
+}
+
+let sessionCache: { status: SharedSessionStatus; cachedAt: number } | null = null;
+let sessionRead: Promise<SharedSessionStatus> | null = null;
 
 export class TncApiError extends Error {
   constructor(message: string) {
@@ -35,29 +47,69 @@ function tokenExpiry(token: string): string | null {
 }
 
 export async function getSharedTncSession(): Promise<SharedTncSession | null> {
+  return (await getSharedTncSessionStatus()).session;
+}
+
+export async function getSharedTncSessionStatus(): Promise<{
+  available: boolean;
+  expiresAt: string | null;
+  reason: "missing" | "expired" | null;
+}> {
+  const status = await readSharedSessionStatus();
+  return {
+    available: Boolean(status.session),
+    expiresAt: status.session?.expires_at ?? null,
+    reason: status.reason,
+  };
+}
+
+async function readSharedSessionStatus(): Promise<SharedSessionStatus> {
+  if (sessionCache && Date.now() - sessionCache.cachedAt < SESSION_CACHE_MS) {
+    return sessionCache.status;
+  }
+  if (sessionRead) return sessionRead;
+
+  sessionRead = (async () => {
   const rows = await supabaseRequest<SharedTncSession[]>(
     `tnc_shared_session?select=id,token,expires_at&id=eq.${SHARED_SESSION_ID}&limit=1`,
   );
   const session = rows[0];
-  if (!session) return null;
+  if (!session) return { session: null, reason: "missing" };
   if (session.expires_at && Date.parse(session.expires_at) <= Date.now()) {
     await clearSharedTncSession(session.token);
-    return null;
+    return { session: null, reason: "expired" };
   }
-  return session;
+    return { session, reason: null };
+  })();
+
+  try {
+    const status = await sessionRead;
+    sessionCache = { status, cachedAt: Date.now() };
+    return status;
+  } finally {
+    sessionRead = null;
+  }
 }
 
 export async function saveSharedTncSession(token: string): Promise<void> {
+  const expiresAt = tokenExpiry(token);
   await supabaseRequest<SharedTncSession[]>("tnc_shared_session?on_conflict=id", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify({
       id: SHARED_SESSION_ID,
       token,
-      expires_at: tokenExpiry(token),
+      expires_at: expiresAt,
       updated_at: new Date().toISOString(),
     }),
   });
+  sessionCache = {
+    status: {
+      session: { id: SHARED_SESSION_ID, token, expires_at: expiresAt },
+      reason: null,
+    },
+    cachedAt: Date.now(),
+  };
 }
 
 export async function clearSharedTncSession(token?: string): Promise<void> {
@@ -66,6 +118,7 @@ export async function clearSharedTncSession(token?: string): Promise<void> {
     `tnc_shared_session?id=eq.${SHARED_SESSION_ID}${tokenCondition}`,
     { method: "DELETE", headers: { Prefer: "return=minimal" } },
   );
+  sessionCache = null;
 }
 
 async function callTnc(payload: Record<string, unknown>, token?: string): Promise<unknown> {
@@ -106,13 +159,30 @@ export async function tncPublicRequest(se: string, data: Record<string, unknown>
   return callTnc({ se, data });
 }
 
-export async function tncProtectedRequest(
+export async function tncOptionalAuthRequest(
   se: string,
   data: Record<string, unknown> = {},
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
   const session = await getSharedTncSession();
-  if (!session) throw new TncLoginRequiredError();
+  try {
+    return await callTnc({ se, data, ...extra }, session?.token);
+  } catch (error) {
+    if (session && error instanceof TncLoginRequiredError) {
+      await clearSharedTncSession(session.token);
+    }
+    throw error;
+  }
+}
+
+export async function tncProtectedRequest(
+  se: string,
+  data: Record<string, unknown> = {},
+  extra: Record<string, unknown> = {},
+): Promise<unknown> {
+  const status = await readSharedSessionStatus();
+  const session = status.session;
+  if (!session) throw new TncLoginRequiredError(status.reason ?? "missing");
   try {
     return await callTnc({ se, data, ...extra }, session.token);
   } catch (error) {

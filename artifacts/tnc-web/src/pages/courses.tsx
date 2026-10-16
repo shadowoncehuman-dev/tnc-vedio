@@ -6,6 +6,8 @@ import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { motion } from "framer-motion";
 import { toggleFavorite, getFavorites } from "@/lib/streak";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
+import CoursePrice from "@/components/CoursePrice";
 
 const PAGE_SIZE = 18;
 
@@ -144,17 +146,11 @@ export default function CoursesPage() {
                     data-testid={`card-course-${course.rowId}`}
                   >
                     <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
-                      {(() => {
-                      // Force the specific thumbnail for ALL courses
-                      const thumbnailUrl = "https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg";
-                      return (
-                        <img
-                          src={thumbnailUrl}
-                          alt={course.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      );
-                    })()}
+                      <img
+                        src={BATCH_THUMBNAIL_URL}
+                        alt={course.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                       {/* Badges */}
                       <div className="absolute top-3 left-3 flex gap-1.5">
                         {isNew && (
@@ -187,6 +183,7 @@ export default function CoursesPage() {
                       {course.description && course.description !== "Description" && (
                         <p className="text-xs text-gray-500 line-clamp-2 mb-2">{course.description}</p>
                       )}
+                      <CoursePrice price={course.price} />
                       <div className="flex gap-2 mt-auto pt-3">
                         <Link
                           href={`/courses/${course.rowId}`}

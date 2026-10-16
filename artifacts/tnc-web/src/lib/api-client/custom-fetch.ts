@@ -369,7 +369,9 @@ export async function customFetch<T = unknown>(
       getStringField(errorData, "code") === "TNC_LOGIN_REQUIRED" &&
       typeof window !== "undefined"
     ) {
-      window.dispatchEvent(new Event("tnc-session-required"));
+      window.dispatchEvent(new CustomEvent("tnc-session-required", {
+        detail: { reason: getStringField(errorData, "reason") },
+      }));
     }
     throw new ApiError(response, errorData, requestInfo);
   }

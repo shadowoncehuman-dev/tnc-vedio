@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
 
 const RAZORPAY_KEY = "rzp_live_in5lCZ8NOaheGp";
 
@@ -176,7 +177,7 @@ export default function BuyPage() {
                 >
                   <div className="relative h-44 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
                     <img
-                      src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
+                      src={BATCH_THUMBNAIL_URL}
                       alt={course.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

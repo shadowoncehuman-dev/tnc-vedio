@@ -80,17 +80,17 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  /* TNC Brand — warm paper, ink, lime and coral */
-  --background: 42 33% 95%;
+  /* TNC Brand — winter ice, deep teal, lime and coral */
+  --background: 205 38% 96%;
   --foreground: 165 22% 12%;
 
-  --card: 0 0% 100%;
+  --card: 204 54% 99%;
   --card-foreground: 220 40% 10%;
-  --card-border: 42 18% 82%;
+  --card-border: 202 28% 84%;
 
-  --popover: 0 0% 100%;
+  --popover: 204 54% 99%;
   --popover-foreground: 165 22% 12%;
-  --popover-border: 42 18% 82%;
+  --popover-border: 202 28% 84%;
 
   /* Deep indigo-blue — brand color */
   --primary: 165 48% 24%;
@@ -101,9 +101,9 @@
   --secondary-foreground: 165 22% 12%;
   --secondary-border: 71px 68% 48%;
 
-  --muted: 40 20% 89%;
-  --muted-foreground: 165 10% 42%;
-  --muted-border: 42 18% 82%;
+  --muted: 202 32% 91%;
+  --muted-foreground: 199 16% 39%;
+  --muted-border: 202 28% 84%;
 
   --accent: 10 78% 61%;
   --accent-foreground: 165 22% 12%;
@@ -113,9 +113,13 @@
   --destructive-foreground: 0 0% 100%;
   --destructive-border: 0px 84% 55%;
 
-  --border: 42 18% 82%;
-  --input: 42 18% 82%;
+  --border: 202 28% 84%;
+  --input: 202 28% 80%;
   --ring: 165 48% 24%;
+
+  --winter-ice: 190 68% 72%;
+  --winter-silver: 205 24% 88%;
+  --winter-midnight: 213 55% 13%;
 
   --chart-1: 165 48% 24%;
   --chart-2: 71 68% 53%;
@@ -187,6 +191,10 @@
   --sidebar-accent-foreground: 0 0% 85%;
   --sidebar-accent-border: 220 30% 18%;
   --sidebar-ring: 226 71% 65%;
+
+  --winter-ice: 190 62% 68%;
+  --winter-silver: 210 26% 25%;
+  --winter-midnight: 216 48% 8%;
 }
 
 .dark body {
@@ -238,7 +246,9 @@
 
 body {
   font-family: var(--app-font-sans);
-  background: hsl(var(--background));
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(211, 240, 250, 0.42), transparent 40%),
+    hsl(var(--background));
   color: hsl(var(--foreground));
   margin: 0;
   padding: 0;
@@ -259,7 +269,7 @@ button, a, input, select, textarea {
 }
 
 .tnc-brand-gradient {
-  background: linear-gradient(135deg, hsl(165 48% 22%), hsl(171 45% 31%));
+  background: linear-gradient(125deg, hsl(165 48% 22%), hsl(185 44% 27%), hsl(171 45% 31%));
 }
 
 .tnc-amber-gradient {
@@ -267,19 +277,21 @@ button, a, input, select, textarea {
 }
 
 .tnc-hero-gradient {
-  background: linear-gradient(135deg, hsl(165 48% 18%) 0%, hsl(171 45% 27%) 58%, hsl(32 48% 25%) 100%);
+  background: linear-gradient(128deg, hsl(213 52% 14%) 0%, hsl(190 43% 23%) 58%, hsl(165 48% 20%) 100%);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(246, 252, 255, 0.78);
+  backdrop-filter: blur(16px) saturate(1.12);
+  border: 1px solid rgba(221, 242, 250, 0.62);
 }
 
 .study-grid {
   background-color: hsl(var(--background));
-  background-image: linear-gradient(rgba(28, 53, 48, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(28, 53, 48, 0.045) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(110, 174, 198, 0.16) 1px, transparent 0),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.3), transparent 52%);
+  background-size: 26px 26px, auto;
 }
 
 .editorial-shadow {
@@ -292,8 +304,8 @@ button, a, input, select, textarea {
 }
 
 .dark .glass-card {
-  background: rgba(20, 25, 50, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 31, 49, 0.78);
+  border: 1px solid rgba(156, 211, 230, 0.16);
 }
 
 .skeleton {
@@ -305,4 +317,295 @@ button, a, input, select, textarea {
 @keyframes skeleton-shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+.winter-season {
+  background-image:
+    radial-gradient(ellipse at 5% 0%, rgba(185, 229, 244, 0.2), transparent 36%),
+    radial-gradient(ellipse at 94% 25%, rgba(205, 231, 246, 0.16), transparent 34%),
+    radial-gradient(circle at 1px 1px, rgba(82, 143, 169, 0.07) 1px, transparent 0);
+  background-size: auto, auto, 28px 28px;
+}
+
+.winter-season > header {
+  background-color: rgba(11, 31, 52, 0.88) !important;
+  backdrop-filter: blur(18px) saturate(1.2);
+  border-bottom-color: rgba(186, 230, 253, 0.24);
+  box-shadow: 0 1px 0 rgba(219, 242, 250, 0.24), 0 8px 24px rgba(13, 42, 61, 0.18);
+}
+
+.winter-season .winter-brand-mark:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(176, 222, 239, 0.16), 0 8px 20px rgba(3, 23, 42, 0.3), inset 0 1px 0 white;
+}
+
+.winter-site {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 8% -6%, rgba(186, 230, 253, 0.18), transparent 38%),
+    radial-gradient(ellipse at 94% 16%, rgba(211, 232, 248, 0.14), transparent 35%);
+}
+
+.winter-site .tnc-brand-gradient {
+  background-image: linear-gradient(125deg, hsl(165 48% 22%), hsl(187 46% 26%), hsl(171 45% 31%));
+}
+
+.winter-site .tnc-hero-gradient {
+  background-image:
+    radial-gradient(ellipse at 78% 8%, rgba(142, 212, 234, 0.2), transparent 32%),
+    linear-gradient(128deg, hsl(213 52% 14%) 0%, hsl(190 43% 23%) 58%, hsl(165 48% 20%) 100%);
+}
+
+.winter-site section.tnc-hero-gradient {
+  position: relative;
+  isolation: isolate;
+}
+
+.winter-site section.tnc-hero-gradient::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: radial-gradient(circle at 1px 1px, rgba(235, 250, 255, 0.75) 1px, transparent 0);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(90deg, transparent, black 55%, black);
+}
+
+.winter-site section.tnc-hero-gradient > * {
+  position: relative;
+  z-index: 1;
+}
+
+.winter-site .bg-white {
+  background-color: rgba(249, 253, 255, 0.82) !important;
+  border-color: rgba(148, 190, 208, 0.3);
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.dark .winter-site .bg-white {
+  background-color: rgba(13, 31, 49, 0.84) !important;
+  border-color: rgba(156, 211, 230, 0.16);
+}
+
+.winter-frosted-panel {
+  background: linear-gradient(145deg, rgba(249, 253, 255, 0.86), rgba(226, 242, 249, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(1.12);
+  box-shadow: 0 18px 46px rgba(11, 44, 66, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.winter-streak-panel {
+  border: 1px solid rgba(204, 235, 247, 0.32);
+  background:
+    radial-gradient(ellipse at 88% 0%, rgba(137, 211, 236, 0.24), transparent 38%),
+    linear-gradient(125deg, rgba(12, 45, 68, 0.96), rgba(26, 91, 116, 0.94));
+  box-shadow: 0 16px 36px rgba(13, 48, 71, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.winter-hero-image img {
+  filter: saturate(0.86) contrast(1.04);
+}
+
+.winter-hero-image::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(155deg, rgba(183, 229, 246, 0.16), transparent 42%, rgba(5, 27, 47, 0.08));
+}
+
+.dark .winter-frosted-panel {
+  background: linear-gradient(145deg, rgba(20, 45, 65, 0.9), rgba(12, 30, 48, 0.78));
+  border-color: rgba(183, 226, 242, 0.18);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(219, 242, 250, 0.08);
+}
+
+.winter-brand-mark {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  border: 1px solid rgba(221, 246, 255, 0.78);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(209, 234, 244, 0.86));
+  box-shadow: 0 0 0 3px rgba(176, 222, 239, 0.12), 0 6px 16px rgba(3, 23, 42, 0.26), inset 0 1px 0 white;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.winter-brand-mark--mobile {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+}
+
+.winter-brand-logo {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(7, 48, 76, 0.15));
+}
+
+.winter-brand-snow {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  color: #d8f7ff;
+  filter: drop-shadow(0 1px 2px rgba(5, 30, 50, 0.9));
+}
+
+.winter-site a:focus-visible,
+.winter-site button:focus-visible,
+.winter-site input:focus-visible,
+.winter-site select:focus-visible,
+.winter-site textarea:focus-visible {
+  outline: 2px solid hsl(var(--winter-ice));
+  outline-offset: 3px;
+}
+
+.winter-season main a,
+.winter-season main button {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 180ms;
+}
+
+.winter-season .editorial-shadow {
+  box-shadow: 0 20px 48px rgba(5, 30, 51, 0.2), 0 0 0 1px rgba(203, 236, 247, 0.52);
+}
+
+.winter-effect-toggle {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(207, 237, 248, 0.24);
+  border-radius: 10px;
+  color: hsl(var(--winter-ice));
+  background: rgba(228, 247, 255, 0.08);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.winter-effect-toggle[aria-pressed="true"] {
+  border-color: rgba(190, 235, 250, 0.5);
+  color: #effbff;
+  background: rgba(158, 218, 240, 0.2);
+  box-shadow: 0 0 14px rgba(128, 207, 235, 0.12);
+}
+
+.winter-effect-toggle:hover {
+  border-color: rgba(190, 235, 250, 0.58);
+  background: rgba(158, 218, 240, 0.18);
+}
+
+.winter-admin-effect-toggle {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(214, 240, 250, 0.26);
+  border-radius: 9px;
+  color: hsl(var(--winter-ice));
+  background: rgba(222, 246, 255, 0.08);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.winter-admin-effect-toggle[aria-pressed="true"] {
+  border-color: rgba(214, 240, 250, 0.52);
+  color: white;
+  background: rgba(160, 218, 239, 0.2);
+}
+
+.winter-switch {
+  display: inline-flex;
+  width: 42px;
+  height: 24px;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid hsl(202 28% 78%);
+  border-radius: 999px;
+  background: hsl(202 28% 90%);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.winter-switch span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(20, 50, 70, 0.22);
+  transition: transform 180ms ease;
+}
+
+.winter-switch.is-on {
+  border-color: hsl(190 50% 46%);
+  background: hsl(190 50% 46%);
+}
+
+.winter-switch.is-on span {
+  transform: translateX(18px);
+}
+
+.winter-snowfall {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+body:has(.fullscreen-active) .winter-snowfall,
+:fullscreen .winter-snowfall {
+  display: none;
+}
+
+.winter-snowfall__flake {
+  position: absolute;
+  top: -2rem;
+  color: rgba(255, 255, 255, 0.68);
+  opacity: var(--flake-opacity, 0.4);
+  text-shadow: 0 0 7px rgba(186, 230, 253, 0.62);
+  filter: blur(0.2px);
+  animation-name: winter-snowfall-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes winter-snowfall-drift {
+  0% {
+    transform: translate3d(0, -5vh, 0) rotate(0deg);
+  }
+  55% {
+    transform: translate3d(8px, 54vh, 0) rotate(130deg);
+  }
+  100% {
+    transform: translate3d(var(--flake-drift, 24px), 110vh, 0) rotate(var(--flake-twist, 220deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .winter-snowfall__flake {
+    animation-duration: 90s !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .winter-snowfall__flake:nth-child(n + 9) {
+    display: none;
+  }
+
+  .winter-brand-mark {
+    box-shadow: 0 0 0 2px rgba(176, 222, 239, 0.12), 0 4px 12px rgba(3, 23, 42, 0.24), inset 0 1px 0 white;
+  }
 }

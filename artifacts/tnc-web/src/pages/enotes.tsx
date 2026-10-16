@@ -15,6 +15,7 @@ import {
 import Layout from "@/components/Layout";
 import { getUser } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import { BATCH_THUMBNAIL_URL } from "@/lib/course-media";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface NoteSession {
@@ -76,7 +77,7 @@ function CourseNoteRow({
           }`}
         >
           <img
-            src="https://i.pinimg.com/736x/14/cd/37/14cd3762b025549304c79af5e96d6b15.jpg"
+            src={BATCH_THUMBNAIL_URL}
             alt={course.name}
             className="w-full h-full object-cover rounded-xl"
           />

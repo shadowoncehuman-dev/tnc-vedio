@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useAdminLogin, useGetAdminStats, useGetAdminUsers, useTogglePromo, useGetPromoStatus, getGetPromoStatusQueryKey } from "@/lib/api-client";
-import { Shield, Users, BookOpen, Video, ShoppingCart, LogOut, ToggleLeft, ToggleRight, RefreshCw, Calendar, Plus, Minus, Clock, Search, Eye, EyeOff } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useAdminLogin, useGetAdminStats, useTogglePromo, useGetPromoStatus, getGetPromoStatusQueryKey, customFetch } from "@/lib/api-client";
+import { Shield, Users, BookOpen, Video, ShoppingCart, LogOut, ToggleLeft, ToggleRight, RefreshCw, Calendar, Plus, Minus, Clock, Search, ChevronLeft, ChevronRight, Snowflake } from "lucide-react";
 import { getAdminToken, setAdminToken, clearAdminToken } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -12,56 +13,79 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { useWinterEffects } from "@/components/WinterEffectsProvider";
 
 const QUICK_DAYS = [7, 14, 30, 60, 90];
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const ADMIN_USER_PAGE_SIZE = 50;
+
+interface AdminDirectoryUser {
+  id: string;
+  source: "app" | "telegram" | "mobile" | "crm";
+  name: string;
+  details: Record<string, unknown>;
+  activityAt: string | null;
+}
+
+interface AdminDirectoryResponse {
+  users: AdminDirectoryUser[];
+  total: number;
+  page: number;
+  limit: number;
+  unavailableSources?: string[];
+}
+
+function displayAdminValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
 
 function StudentsDirectory() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showCredentialNotice, setShowCredentialNotice] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
+  const [page, setPage] = useState(1);
   
   // Immediate search on change for better UX
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 200); // Fast 200ms debounce for quick response
+    }, 400);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, error, refetch } = useGetAdminUsers(
-    { page: 1, limit: 100, search: debouncedSearch || undefined },
-    { request: { headers: { "x-admin-token": getAdminToken() ?? "" } } },
-  );
-
-  // Set initial loading state
   useEffect(() => {
-    if (!isLoading) {
-      setIsInitialLoading(false);
-    }
-  }, [isLoading]);
+    setPage(1);
+  }, [debouncedSearch]);
 
-  // Handle retry on error
-  const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
-    refetch();
-  };
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["admin-user-directory", debouncedSearch, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), limit: String(ADMIN_USER_PAGE_SIZE) });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      return customFetch<AdminDirectoryResponse>(`${BASE}/api/admin/users?${params}`, {
+        headers: { "x-admin-token": getAdminToken() ?? "" },
+      });
+    },
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
+  });
 
-  // Show loading only on initial load
-  const showLoading = isInitialLoading && !data;
   const students = data?.users ?? [];
+  const pageCount = Math.max(1, Math.ceil((data?.total ?? 0) / ADMIN_USER_PAGE_SIZE));
+  const firstRow = data?.total ? (page - 1) * ADMIN_USER_PAGE_SIZE + 1 : 0;
+  const lastRow = Math.min(page * ADMIN_USER_PAGE_SIZE, data?.total ?? 0);
 
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-lg font-black text-gray-900">Registered Students</h2>
-          <p className="text-sm text-gray-500">{data?.total ?? 0} app accounts</p>
+          <h2 className="text-lg font-black text-gray-900">All Users</h2>
+          <p className="text-sm text-gray-500">{(data?.total ?? 0).toLocaleString()} users across CRM, app, Telegram, and mobile</p>
         </div>
-        <button 
-          onClick={() => refetch()} 
+        <button
+          onClick={() => void refetch()}
           disabled={isLoading}
           className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -70,10 +94,10 @@ function StudentsDirectory() {
       </div>
       <div className="relative mb-4">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input 
-          value={search} 
-          onChange={(event) => setSearch(event.target.value)} 
-          placeholder="Search name, mobile, email, college..." 
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search every user field: name, ID, contact, platform, activity..."
           className="w-full rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" 
         />
         {search !== debouncedSearch && (
@@ -83,59 +107,73 @@ function StudentsDirectory() {
         )}
       </div>
       
-      {/* Error State */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <p className="text-sm text-red-800">Failed to load students. Please try again.</p>
-          <button 
-            onClick={handleRetry}
+          <p className="text-sm text-red-800">Failed to load users. Please try again.</p>
+          <button
+            onClick={() => void refetch()}
             className="mt-2 text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
           >
-            Retry ({retryCount > 0 ? `Attempt ${retryCount}` : 'Once'})
+            Retry
           </button>
         </div>
       )}
-      
-      {/* Loading State */}
-      {showLoading && (
+      {data?.unavailableSources?.includes("crm") && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          CRM users require a valid TNC session. <Link href="/courses" className="font-semibold underline">Sign in on Courses</Link>, return here, and refresh the directory.
+        </p>
+      )}
+
+      {isLoading && !data && (
         <div className="py-8 text-center">
-          <div className="inline-flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" />
-            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '0.2s' }} />
-            <div className="w-4 h-4 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '0.4s' }} />
-          </div>
-          <p className="mt-2 text-sm text-gray-500">Loading students...</p>
+          <p className="text-sm text-gray-500">Loading users...</p>
         </div>
       )}
-      
-      {/* Empty State */}
-      {!showLoading && !isLoading && students.length === 0 && (
+
+      {!isLoading && students.length === 0 && (
         <div className="py-8 text-center text-gray-500">
-          <p>No students found.</p>
+          <p>No users found.</p>
           {search && <p className="text-xs mt-1">Try adjusting your search terms</p>}
         </div>
       )}
-      
-      {/* Table */}
-      {!showLoading && !isLoading && students.length > 0 && (
+
+      {students.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Mobile</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">College / State</th><th className="py-2">Credentials</th></tr></thead>
+            <thead><tr className="border-b text-xs uppercase tracking-wide text-gray-400"><th className="py-2 pr-4">User</th><th className="py-2 pr-4">Source</th><th className="py-2 pr-4">Available user data</th><th className="py-2">Last active</th></tr></thead>
             <tbody>
               {students.map((student) => (
                 <tr key={student.id} className="border-b last:border-0 align-top">
-                  <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="text-xs font-normal text-gray-400">{student.rowId}</div></td>
-                  <td className="py-3 pr-4 text-gray-600">{student.mobile}</td>
-                  <td className="py-3 pr-4 text-gray-600">{student.email || "-"}</td>
-                  <td className="py-3 pr-4 text-gray-600">{student.college || "-"}<div className="text-xs text-gray-400">{student.state || ""}</div></td>
-                  <td className="py-3"><button onClick={() => setShowCredentialNotice((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50" title="Password status">{showCredentialNotice ? <EyeOff size={13} /> : <Eye size={13} />} {showCredentialNotice ? "Unavailable" : "Reveal status"}</button></td>
+                  <td className="py-3 pr-4 font-semibold text-gray-900">{student.name}<div className="break-all text-xs font-normal text-gray-400">{student.id}</div></td>
+                  <td className="py-3 pr-4"><span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium capitalize text-gray-700">{student.source}</span></td>
+                  <td className="py-3 pr-4">
+                    <dl className="grid min-w-[22rem] grid-cols-1 gap-x-5 gap-y-1 sm:grid-cols-2">
+                      {Object.entries(student.details).filter(([, value]) => value !== null && value !== "").map(([key, value]) => (
+                        <div key={key} className="min-w-0 text-xs">
+                          <dt className="inline font-medium text-gray-500">{key.replaceAll("_", " ")}: </dt>
+                          <dd className="inline break-words text-gray-800">{displayAdminValue(value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </td>
+                  <td className="whitespace-nowrap py-3 text-xs text-gray-600">{student.activityAt ? new Date(student.activityAt).toLocaleString() : "-"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {showCredentialNotice && <p className="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800">Passwords cannot be revealed. They are stored as one-way hashes. Reset the student password through a dedicated reset flow instead.</p>}
+
+      {data && data.total > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <p className="text-xs text-gray-500">Showing {firstRow.toLocaleString()}–{lastRow.toLocaleString()} of {data.total.toLocaleString()} users. Passwords, tokens, and secrets are excluded.</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || isLoading} className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Previous users page"><ChevronLeft size={16} /></button>
+            <span className="text-xs text-gray-600">Page {page} of {pageCount}</span>
+            <button type="button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount || isLoading} className="rounded border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Next users page"><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -472,6 +510,7 @@ function PromoManager() {
 function AdminDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { enabled: winterEffectsEnabled, toggle: toggleWinterEffects } = useWinterEffects();
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useGetAdminStats();
 
@@ -494,6 +533,17 @@ function AdminDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleWinterEffects}
+            className="winter-admin-effect-toggle"
+            title={winterEffectsEnabled ? "Turn snowfall off" : "Turn snowfall on"}
+            aria-label={winterEffectsEnabled ? "Turn snowfall off" : "Turn snowfall on"}
+            aria-pressed={winterEffectsEnabled}
+            data-testid="btn-admin-winter-effects"
+          >
+            <Snowflake size={15} />
+          </button>
           <Link href="/" className="text-white/60 hover:text-white text-xs transition-colors px-2" data-testid="btn-admin-site">View Site</Link>
           <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors" data-testid="btn-admin-logout">
             <LogOut size={13} /> Logout

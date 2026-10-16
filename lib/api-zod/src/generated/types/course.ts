@@ -11,6 +11,7 @@ export interface Course {
   rowId: string;
   name: string;
   description: string;
+  price?: string;
   serialNo: string;
   /** @nullable */
   imageUrl?: string | null;

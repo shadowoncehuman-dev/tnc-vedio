@@ -118,7 +118,7 @@ function deriveSubject(title: string): { rowId: string; name: string } {
   return { rowId: "uncategorized", name: "Uncategorized" };
 }
 
-function isYouTubeUrl(url: unknown): url is string {
+function isYouTubeUrl(url: unknown): boolean {
   if (typeof url !== "string" || !url.startsWith("http")) return false;
   return url.includes("youtube.com") || url.includes("youtu.be");
 }
@@ -448,10 +448,9 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
       ? JSON.parse(batch.json) as Record<string, unknown>
       : (batch?.json as Record<string, unknown>) ?? {};
     const subjectIds = Array.isArray(batchJson._su) ? [...new Set(batchJson._su as string[])] : [];
-    const chapterIds = Array.isArray(batchJson._ch) ? [...new Set(batchJson._ch as string[])] : [];
     const parentCourseIds = Array.isArray(batchJson._co) ? batchJson._co as string[] : [];
     const [contentData, subjectData] = await Promise.all([
-      tncProtectedRequest("fe", { json: "*" }, { sch: "t_ch", cond: { "(row_id)": chapterIds } }),
+      tncProtectedRequest("fe", { json: "*" }, { sch: "t_ch", cond: { co_refid: courseId } }),
       tncProtectedRequest("fe", { json: "*" }, {
         sch: "t_su",
         cond: subjectIds.length ? { "(row_id)": subjectIds } : { co_refid: parentCourseIds[0] ?? "" },
@@ -615,18 +614,13 @@ router.get("/media-proxy", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// GET /api/notes — PDF-only sessions per course (or newest 60 across all courses)
+// GET /api/notes — PDF-only sessions per course (or all PDFs across courses)
 router.get("/notes", async (req: Request, res: Response): Promise<void> => {
   try {
     const { courseId, limit: limitParam } = req.query;
     const cond: Record<string, unknown> = {};
     if (typeof courseId === "string") {
-      const batches = await tncProtectedRequest("fe_co");
-      const batch = Array.isArray(batches)
-        ? (batches as Record<string, unknown>[]).find((row) => row.row_id === courseId)
-        : undefined;
-      const json = typeof batch?.json === "string" ? JSON.parse(batch.json) as Record<string, unknown> : (batch?.json as Record<string, unknown>) ?? {};
-      cond["(row_id)"] = Array.isArray(json._ch) ? json._ch : [];
+      cond.co_refid = courseId;
     }
 
     const data = await tncProtectedRequest("fe", { json: "*" }, { sch: "t_ch", cond });
@@ -650,7 +644,10 @@ router.get("/notes", async (req: Request, res: Response): Promise<void> => {
       return String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? ""));
     });
 
-    const limit = courseId ? sessions.length : Math.min(parseInt(String(limitParam ?? "60")), 200);
+    const requestedLimit = Number.parseInt(String(limitParam), 10);
+    const limit = courseId || limitParam === undefined
+      ? sessions.length
+      : Math.min(Math.max(0, Number.isFinite(requestedLimit) ? requestedLimit : 0), 200);
     res.json(sessions.slice(0, limit));
   } catch (err) {
     if (sendTncLoginRequired(res, err)) return;
@@ -665,12 +662,7 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
     const { courseId, subjectId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
     const cond: Record<string, unknown> = {};
     if (typeof courseId === "string") {
-      const batches = await tncProtectedRequest("fe_co");
-      const batch = Array.isArray(batches)
-        ? (batches as Record<string, unknown>[]).find((row) => row.row_id === courseId)
-        : undefined;
-      const json = typeof batch?.json === "string" ? JSON.parse(batch.json) as Record<string, unknown> : (batch?.json as Record<string, unknown>) ?? {};
-      cond["(row_id)"] = Array.isArray(json._ch) ? json._ch : [];
+      cond.co_refid = courseId;
     }
     const requestedSubjectId = typeof subjectId === "string" ? subjectId.trim() : "";
 

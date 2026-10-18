@@ -54,11 +54,16 @@ export default function SubjectDetailPage() {
   });
   const subject = subjects.find((item) => item.rowId === subjectId);
 
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery<SubjectSession[]>({
+  const {
+    data: sessions = [],
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery<SubjectSession[]>({
     queryKey: ["sessions", courseId, subjectId, search],
     enabled: !!courseId && !!subjectId,
     queryFn: () => customFetch<SubjectSession[]>(
-      `/api/sessions?courseId=${encodeURIComponent(courseId ?? "")}&subjectId=${encodeURIComponent(subjectId ?? "")}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+      `/api/sessions?courseId=${encodeURIComponent(courseId ?? "")}&subjectId=${encodeURIComponent(subjectId ?? "")}&subjectName=${encodeURIComponent(subject?.name ?? "")}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
     ),
   });
   const { data: promo } = useGetPromoStatus();
@@ -149,7 +154,14 @@ export default function SubjectDetailPage() {
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><X size={16} /></button>}
         </div>
 
-        {isLoading ? (
+        {sessionsError ? (
+          <div role="alert" className="py-12 text-center">
+            <p className="text-sm font-semibold text-gray-700">Lectures could not be loaded.</p>
+            <button onClick={() => void refetchSessions()} className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+              Try again
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="space-y-3">{[1, 2, 3, 4].map((item) => <div key={item} className="h-16 rounded-xl skeleton" />)}</div>
         ) : visibleSessions.length === 0 ? (
           <StudyEmptyState title={filter === "quiz" ? "No quizzes available in this subject yet" : "No learning content available in this subject yet"} />

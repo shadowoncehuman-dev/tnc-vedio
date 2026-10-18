@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode, useState, useEffect } from "react";
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode, useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,21 +8,21 @@ import PageLoader from "@/components/PageLoader";
 import SecurityGuard from "@/components/SecurityGuard";
 import { getTelegramInitData, getTelegramUser, readyTelegramApp, expandTelegramApp, isTelegramWebApp } from "@/lib/telegram";
 
-import HomePage from "@/pages/home";
-import CoursesPage from "@/pages/courses";
-import CourseDetailPage from "@/pages/course-detail";
-import SubjectDetailPage from "@/pages/subject-detail";
-import VideosPage from "@/pages/videos";
-import WatchedPage from "@/pages/watched";
-import EnotesPage from "@/pages/enotes";
-import AdminPage from "@/pages/admin";
-import WatchPage from "@/pages/watch";
-import PdfViewerPage from "@/pages/pdf-viewer";
-import NotFound from "@/pages/not-found";
-import LeaderboardPage from "@/pages/leaderboard";
-import QuizPage from "@/pages/quiz";
-import QuizTakePage from "@/pages/quiz-take";
-import BuyPage from "@/pages/buy";
+const HomePage = lazy(() => import("@/pages/home"));
+const CoursesPage = lazy(() => import("@/pages/courses"));
+const CourseDetailPage = lazy(() => import("@/pages/course-detail"));
+const SubjectDetailPage = lazy(() => import("@/pages/subject-detail"));
+const VideosPage = lazy(() => import("@/pages/videos"));
+const WatchedPage = lazy(() => import("@/pages/watched"));
+const EnotesPage = lazy(() => import("@/pages/enotes"));
+const AdminPage = lazy(() => import("@/pages/admin"));
+const WatchPage = lazy(() => import("@/pages/watch"));
+const PdfViewerPage = lazy(() => import("@/pages/pdf-viewer"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+const LeaderboardPage = lazy(() => import("@/pages/leaderboard"));
+const QuizPage = lazy(() => import("@/pages/quiz"));
+const QuizTakePage = lazy(() => import("@/pages/quiz-take"));
+const BuyPage = lazy(() => import("@/pages/buy"));
 import WinterEffectsProvider, { useWinterEffects } from "@/components/WinterEffectsProvider";
 import WinterSnowfall from "@/components/WinterSnowfall";
 import { ApiError } from "@/lib/api-client/custom-fetch";
@@ -83,23 +83,25 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={HomePage} />
-      <Route path="/courses" component={CoursesPage} />
-      <Route path="/courses/:courseId/subjects/:subjectId" component={SubjectDetailPage} />
-      <Route path="/courses/:courseId" component={CourseDetailPage} />
-      <Route path="/videos" component={VideosPage} />
-      <Route path="/watched" component={WatchedPage} />
-      <Route path="/enotes" component={EnotesPage} />
-      <Route path="/leaderboard" component={LeaderboardPage} />
-      <Route path="/quiz" component={QuizPage} />
-      <Route path="/quiz/:examId" component={QuizTakePage} />
-      <Route path="/buy" component={BuyPage} />
-      <Route path="/admin" component={AdminPage} />
-      <Route path="/watch/:sessionId" component={WatchPage} />
-      <Route path="/pdf/:sessionId" component={PdfViewerPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/courses" component={CoursesPage} />
+        <Route path="/courses/:courseId/subjects/:subjectId" component={SubjectDetailPage} />
+        <Route path="/courses/:courseId" component={CourseDetailPage} />
+        <Route path="/videos" component={VideosPage} />
+        <Route path="/watched" component={WatchedPage} />
+        <Route path="/enotes" component={EnotesPage} />
+        <Route path="/leaderboard" component={LeaderboardPage} />
+        <Route path="/quiz" component={QuizPage} />
+        <Route path="/quiz/:examId" component={QuizTakePage} />
+        <Route path="/buy" component={BuyPage} />
+        <Route path="/admin" component={AdminPage} />
+        <Route path="/watch/:sessionId" component={WatchPage} />
+        <Route path="/pdf/:sessionId" component={PdfViewerPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

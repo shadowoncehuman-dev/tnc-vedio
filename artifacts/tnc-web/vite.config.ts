@@ -56,6 +56,17 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/[\\/]node_modules[\\/](@firebase|firebase)[\\/]/.test(id)) return "firebase-vendor";
+          if (/[\\/]node_modules[\\/](recharts|victory-vendor)[\\/]/.test(id)) return "charts-vendor";
+          if (/[\\/]node_modules[\\/]framer-motion[\\/]/.test(id)) return "motion-vendor";
+        },
+      },
+    },
   },
   server: {
     port,

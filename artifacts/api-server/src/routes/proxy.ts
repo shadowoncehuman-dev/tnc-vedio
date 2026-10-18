@@ -99,6 +99,7 @@ function parseCourse(row: Record<string, unknown>) {
 function deriveSubject(title: string): { rowId: string; name: string } {
   const normalized = title.trim().toLowerCase();
   const rules: Array<[RegExp, string, string]> = [
+    [/^neuro(?:logy)?\b/i, "neurology", "Neurology"],
     [/^obg\b|\bobg\s*[-:]/i, "obg", "OBG"],
     [/^fon\b|nursing foundation/i, "nursing-foundation", "Nursing Foundation"],
     [/^blood\b/i, "blood", "Blood"],
@@ -116,6 +117,17 @@ function deriveSubject(title: string): { rowId: string; name: string } {
     if (pattern.test(normalized)) return { rowId, name };
   }
   return { rowId: "uncategorized", name: "Uncategorized" };
+}
+
+function titleMatchesSubject(title: string, subjectName: string): boolean {
+  const normalizedTitle = title.trim().toLowerCase();
+  const normalizedName = subjectName.trim().toLowerCase();
+  if (!normalizedTitle || !normalizedName) return false;
+  if (normalizedTitle.startsWith(normalizedName) && !/[a-z0-9]/i.test(normalizedTitle[normalizedName.length] ?? "")) {
+    return true;
+  }
+  const derivedSubject = deriveSubject(title);
+  return derivedSubject.rowId !== "uncategorized" && derivedSubject.name.toLowerCase() === normalizedName;
 }
 
 function isYouTubeUrl(url: unknown): boolean {
@@ -456,6 +468,11 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
         cond: subjectIds.length ? { "(row_id)": subjectIds } : { co_refid: parentCourseIds[0] ?? "" },
       }),
     ]);
+    if (!Array.isArray(contentData)) {
+      logger.error({ courseId }, "TNC returned an unexpected response for subject content");
+      res.status(502).json({ error: "Unable to fetch subject content from TNC" });
+      return;
+    }
     const subjects: Array<Record<string, unknown> & { rowId: string; name: string; videoCount: number; pdfCount: number; totalCount: number }> = [];
     const subjectById = new Map<string, (typeof subjects)[number]>();
     if (Array.isArray(subjectData)) {
@@ -477,32 +494,30 @@ router.get("/subjects", async (req: Request, res: Response): Promise<void> => {
         subjectById.set(rowId, subject);
       }
     }
-    if (Array.isArray(contentData)) {
-      for (const row of contentData as Record<string, unknown>[]) {
-        const parsed = parseChapter(row);
-        const subjectId = parsed.subjectId?.trim() || "uncategorized";
-        let subject = subjectById.get(subjectId);
-        if (!subject) {
-          const derived = deriveSubject(parsed.title);
-          subject = {
-            id: 0,
-            rowId: subjectId,
-            courseId: typeof courseId === "string" ? courseId : null,
-            name: derived.name,
-            serialNo: String(subjects.length).padStart(4, "0"),
-            videoCount: 0,
-            pdfCount: 0,
-            totalCount: 0,
-          };
-          subjects.push(subject);
-          subjectById.set(subject.rowId, subject);
-        }
-        subject.totalCount += 1;
-        const hasPdf = Boolean(parsed.pdfUrl) || parsed.contentType === "pdf";
-        const hasVideo = parsed.contentType === "youtube" || parsed.contentType === "firebase" || Boolean(parsed.videoUrl);
-        if (hasPdf) subject.pdfCount += 1;
-        if (hasVideo || !hasPdf) subject.videoCount += 1;
+    for (const row of contentData as Record<string, unknown>[]) {
+      const parsed = parseChapter(row);
+      const subjectId = parsed.subjectId?.trim() || "uncategorized";
+      const derived = deriveSubject(parsed.title);
+      let subject = subjectById.get(subjectId) ?? subjects.find((candidate) => titleMatchesSubject(parsed.title, candidate.name));
+      if (!subject) {
+        subject = {
+          id: 0,
+          rowId: subjectId,
+          courseId: typeof courseId === "string" ? courseId : null,
+          name: derived.name,
+          serialNo: String(subjects.length).padStart(4, "0"),
+          videoCount: 0,
+          pdfCount: 0,
+          totalCount: 0,
+        };
+        subjects.push(subject);
+        subjectById.set(subject.rowId, subject);
       }
+      subject.totalCount += 1;
+      const hasPdf = Boolean(parsed.pdfUrl) || parsed.contentType === "pdf";
+      const hasVideo = parsed.contentType === "youtube" || parsed.contentType === "firebase" || Boolean(parsed.videoUrl);
+      if (hasPdf) subject.pdfCount += 1;
+      if (hasVideo || !hasPdf) subject.videoCount += 1;
     }
     subjects.sort((a, b) => {
       const aNo = Number.isFinite(Number(a.serialNo)) ? Number(a.serialNo) : Number.MAX_SAFE_INTEGER;
@@ -659,7 +674,7 @@ router.get("/notes", async (req: Request, res: Response): Promise<void> => {
 // GET /api/sessions — queries t_ch (real video sessions) with pagination + sort
 router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { courseId, subjectId, limit: limitParam, type, sort, page: pageParam, search } = req.query;
+    const { courseId, subjectId, subjectName, limit: limitParam, type, sort, page: pageParam, search } = req.query;
     const cond: Record<string, unknown> = {};
     if (typeof courseId === "string") {
       cond.co_refid = courseId;
@@ -669,12 +684,23 @@ router.get("/sessions", async (req: Request, res: Response): Promise<void> => {
     const data = await tncProtectedRequest("fe", { json: "*" }, { sch: "t_ch", cond });
 
     if (!Array.isArray(data)) {
-      res.json(courseId ? [] : { sessions: [], total: 0 });
+      logger.error({ courseId }, "TNC returned an unexpected response for sessions");
+      res.status(502).json({ error: "Unable to fetch sessions from TNC" });
       return;
     }
 
     let sessions = (data as Record<string, unknown>[]).map(parseChapter);
-    if (requestedSubjectId) sessions = sessions.filter((session) => session.subjectId === requestedSubjectId);
+    if (requestedSubjectId) {
+      const exactMatches = sessions.filter((session) => session.subjectId === requestedSubjectId);
+      if (exactMatches.length > 0) {
+        sessions = exactMatches;
+      } else {
+        const requestedName = typeof subjectName === "string" ? subjectName.trim() : "";
+        sessions = requestedName
+          ? sessions.filter((session) => titleMatchesSubject(String(session.title ?? ""), requestedName))
+          : [];
+      }
+    }
 
     // Filter by search query if provided
     if (search && typeof search === "string" && search.trim().length > 0) {

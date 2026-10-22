@@ -43,7 +43,7 @@ function useCourseNotes(courseId: string | null, enabled: boolean) {
 function useRecentNotes() {
   return useQuery<NoteSession[]>({
     queryKey: ["notes", "recent"],
-    queryFn: () => customFetch<NoteSession[]>("/api/notes?limit=60"),
+    queryFn: () => customFetch<NoteSession[]>("/api/notes"),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -361,26 +361,71 @@ function convertFirebaseStorageUrl(url: string): string {
   return url;
 }
 
+// FastStream, Vimeo and YouTube embeds are resolved on the client (see
+// artifacts/tnc-web/src/lib/video-utils.ts) so the backend only needs to report
+// the provider + id instead of wrapping URLs in videoplay.tncnursing.in.
+
+function isVimeoUrl(url: unknown): boolean {
+  return typeof url === "string" && /(?:^|\/\/|\.)vimeo\.com\//i.test(url);
+}
+
+function extractVimeoId(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const match = raw.match(/(\d{5,})/);
+  return match ? match[1] : null;
+}
+
+function extractYouTubeId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(
+    /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/,
+  );
+  return match ? match[1] : null;
+}
+
 function parseChapter(row: Record<string, unknown>) {
   const json = recordJson(row.json);
   const title = (json._na ?? "Untitled") as string;
   const derivedSubject = deriveSubject(title);
-  const vi = (json._vi as Record<string, unknown>) ?? {};
+  const vi = recordJson(json._vi);
   const de = recordJson(json._de);
-  const deVi = (de._vi as Record<string, unknown>) ?? {};
+  const deVi = recordJson(de._vi);
 
-  // Firebase ID for secured content (UUID style) - PRIORITY 1
-  // This uses /api/firebase-stream/:fsId which supports Range requests for seeking
-  const firebaseId = (vi._fs_id ?? deVi.fs_id ?? "") as string;
-  const hasFirebaseId = typeof firebaseId === "string" && firebaseId.trim().length > 10;
+  // FastStream ID for secured content (UUID style) - PRIORITY 1.
+  // Both `fs_id` and `_fs_id` appear across schema versions.
+  const fsIdRaw = vi.fs_id ?? vi._fs_id ?? deVi.fs_id ?? deVi._fs_id ?? "";
+  const firebaseId = typeof fsIdRaw === "string"
+    ? fsIdRaw.trim()
+    : typeof fsIdRaw === "number" ? String(fsIdRaw) : "";
+  const hasFirebaseId = firebaseId.length > 10;
 
+  const vimeoRaw = vi.vimeo ?? vi._vim_id ?? deVi.vimeo ?? deVi._vim_id;
+
+  type VideoProvider = "fs" | "vimeo" | "youtube" | "direct";
+  let videoProvider: VideoProvider | null = null;
+  let videoId = "";
   let videoUrl: string | null = null;
   let contentType: "youtube" | "firebase" | "pdf" | "none" = "none";
 
-  // If we have a Firebase ID, use the proper streaming endpoint
   if (hasFirebaseId) {
     contentType = "firebase";
-  } else {
+    videoProvider = "fs";
+    videoId = firebaseId;
+  } else if (vimeoRaw !== undefined && vimeoRaw !== null && String(vimeoRaw).trim()) {
+    const vimeoId = extractVimeoId(vimeoRaw);
+    if (vimeoId) {
+      videoProvider = "vimeo";
+      videoId = vimeoId;
+      videoUrl = `https://player.vimeo.com/video/${vimeoId}?app_id=58479`;
+      // "youtube" is the playable-video content type; the frontend resolves the
+      // real provider from `videoProvider`/`videoUrl`.
+      contentType = "youtube";
+    }
+  }
+
+  if (!videoUrl && !hasFirebaseId) {
     // Collect all possible video URL fields from both old and new schema
     const rawVideoUrls = [
       vi._vi_url,
@@ -400,16 +445,30 @@ function parseChapter(row: Record<string, unknown>) {
       if (isFirebaseStorageUrl(raw)) {
         // Fallback: proxy Firebase Storage URL (no Range support)
         videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
+        videoProvider = "direct";
         contentType = "youtube"; // treat as playable video
         break;
       }
+      if (isVimeoUrl(raw)) {
+        const vimeoId = extractVimeoId(raw);
+        if (vimeoId) {
+          videoProvider = "vimeo";
+          videoId = vimeoId;
+          videoUrl = `https://player.vimeo.com/video/${vimeoId}?app_id=58479`;
+          contentType = "youtube";
+          break;
+        }
+      }
       if (isYouTubeUrl(raw)) {
         videoUrl = raw;
+        videoProvider = "youtube";
+        videoId = extractYouTubeId(raw) ?? "";
         contentType = "youtube";
         break;
       }
       if (isDirectVideoUrl(raw)) {
         videoUrl = raw;
+        videoProvider = "direct";
         contentType = "youtube";
         break;
       }
@@ -474,6 +533,8 @@ function parseChapter(row: Record<string, unknown>) {
     pdfUrl,
     pdfUrls: pdfCandidates.map(pdfProxyUrl),
     firebaseId: hasFirebaseId ? firebaseId : null,
+    videoProvider,
+    videoId: videoId || null,
     contentType,
     type: finalType,
     courseId: (row.co_refid ?? json._co) as string | null,

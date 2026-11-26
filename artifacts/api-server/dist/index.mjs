@@ -65159,20 +65159,52 @@ function convertFirebaseStorageUrl(url) {
   }
   return url;
 }
+function isVimeoUrl(url) {
+  return typeof url === "string" && /(?:^|\/\/|\.)vimeo\.com\//i.test(url);
+}
+function extractVimeoId(value) {
+  if (value === null || value === void 0) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const match = raw.match(/(\d{5,})/);
+  return match ? match[1] : null;
+}
+function extractYouTubeId(value) {
+  if (typeof value !== "string") return null;
+  const match = value.match(
+    /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+  );
+  return match ? match[1] : null;
+}
 function parseChapter(row) {
   const json = recordJson(row.json);
   const title = json._na ?? "Untitled";
   const derivedSubject = deriveSubject(title);
-  const vi = json._vi ?? {};
+  const vi = recordJson(json._vi);
   const de = recordJson(json._de);
-  const deVi = de._vi ?? {};
-  const firebaseId = vi._fs_id ?? deVi.fs_id ?? "";
-  const hasFirebaseId = typeof firebaseId === "string" && firebaseId.trim().length > 10;
+  const deVi = recordJson(de._vi);
+  const fsIdRaw = vi.fs_id ?? vi._fs_id ?? deVi.fs_id ?? deVi._fs_id ?? "";
+  const firebaseId = typeof fsIdRaw === "string" ? fsIdRaw.trim() : typeof fsIdRaw === "number" ? String(fsIdRaw) : "";
+  const hasFirebaseId = firebaseId.length > 10;
+  const vimeoRaw = vi.vimeo ?? vi._vim_id ?? deVi.vimeo ?? deVi._vim_id;
+  let videoProvider = null;
+  let videoId = "";
   let videoUrl = null;
   let contentType = "none";
   if (hasFirebaseId) {
     contentType = "firebase";
-  } else {
+    videoProvider = "fs";
+    videoId = firebaseId;
+  } else if (vimeoRaw !== void 0 && vimeoRaw !== null && String(vimeoRaw).trim()) {
+    const vimeoId = extractVimeoId(vimeoRaw);
+    if (vimeoId) {
+      videoProvider = "vimeo";
+      videoId = vimeoId;
+      videoUrl = `https://player.vimeo.com/video/${vimeoId}?app_id=58479`;
+      contentType = "youtube";
+    }
+  }
+  if (!videoUrl && !hasFirebaseId) {
     const rawVideoUrls = [
       vi._vi_url,
       deVi.url,
@@ -65189,16 +65221,30 @@ function parseChapter(row) {
       if (!raw || typeof raw !== "string") continue;
       if (isFirebaseStorageUrl(raw)) {
         videoUrl = `/api/media-proxy?url=${encodeURIComponent(convertFirebaseStorageUrl(raw))}`;
+        videoProvider = "direct";
         contentType = "youtube";
         break;
       }
+      if (isVimeoUrl(raw)) {
+        const vimeoId = extractVimeoId(raw);
+        if (vimeoId) {
+          videoProvider = "vimeo";
+          videoId = vimeoId;
+          videoUrl = `https://player.vimeo.com/video/${vimeoId}?app_id=58479`;
+          contentType = "youtube";
+          break;
+        }
+      }
       if (isYouTubeUrl(raw)) {
         videoUrl = raw;
+        videoProvider = "youtube";
+        videoId = extractYouTubeId(raw) ?? "";
         contentType = "youtube";
         break;
       }
       if (isDirectVideoUrl(raw)) {
         videoUrl = raw;
+        videoProvider = "direct";
         contentType = "youtube";
         break;
       }
@@ -65240,6 +65286,8 @@ function parseChapter(row) {
     pdfUrl,
     pdfUrls: pdfCandidates.map(pdfProxyUrl),
     firebaseId: hasFirebaseId ? firebaseId : null,
+    videoProvider,
+    videoId: videoId || null,
     contentType,
     type: finalType,
     courseId: row.co_refid ?? json._co,

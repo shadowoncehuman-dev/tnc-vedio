@@ -8,6 +8,7 @@ import { isVideoCompleted, markVideoWatched, toggleVideoCompleted } from "@/lib/
 import { getTelegramUser } from "@/lib/telegram";
 import { useSiteAuth } from "@/components/SiteAuthProvider";
 import { withMediaAccessToken } from "@/lib/supabase";
+import { getVideoEmbedUrl, resolveVideoProvider, resolveVideoId } from "@/lib/video-utils";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -402,25 +403,17 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
   );
 }
 
-function YouTubeEmbed({ url }: { url: string }) {
-  const videoId = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1];
-  if (!videoId) {
-    return (
-      <div className="h-40 flex items-center justify-center text-white/50 text-sm bg-black rounded-xl">
-        Could not parse YouTube video ID
-      </div>
-    );
-  }
+function EmbedFrame({ src, title }: { src: string; title: string }) {
   return (
-    <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+    <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-2xl" style={{ paddingTop: "56.25%" }}>
       <iframe
-        src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autoplay=0`}
-        className="absolute inset-0 w-full h-full rounded-xl"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        key={src}
+        src={src}
+        title={title || "Lecture Video"}
+        className="absolute inset-0 w-full h-full border-0"
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
         allowFullScreen
-        loading="lazy"
-        data-testid="youtube-embed"
-        title="Video lecture"
+        data-testid="lecture-embed"
       />
     </div>
   );
@@ -468,28 +461,33 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
   );
 }
 
-function FsVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: string; title: string; sessionId?: string }) {
-  // The legacy external player (videoplay.tncnursing.in) sends
-  // `X-Frame-Options: SAMEORIGIN`, so it can never render inside an iframe.
-  // Stream through our own Range-capable proxy instead.
-  const src = getApiUrl(`/api/firebase-stream/${encodeURIComponent(firebaseId)}`);
-  const fallbackUrl = `https://videoplay.tncnursing.in/videos/fs/index.html?${encodeURIComponent(firebaseId)}`;
-  return (
-    <div className="space-y-2">
-      <HlsPlayer src={src} sessionId={sessionId} />
-      <p className="px-1 text-xs text-gray-400">
-        Video not loading?{" "}
-        <a
-          href={fallbackUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:underline"
-        >
-          Open in a new tab ↗
-        </a>
-      </p>
-    </div>
-  );
+type LectureSession = {
+  videoUrl?: string | null;
+  contentType?: string;
+  title: string;
+  firebaseId?: string | null;
+  videoProvider?: string | null;
+  videoId?: string | null;
+};
+
+function LecturePlayer({ session, sessionId }: { session: LectureSession; sessionId: string }) {
+  const provider = resolveVideoProvider(session);
+  const videoUrl = session.videoUrl;
+
+  if (provider === "direct") {
+    if (!videoUrl) return null;
+    // Direct .mp4 / .m3u8 links play in the HTML5 video element (HlsPlayer
+    // handles native playback plus HLS via hls.js).
+    return (
+      <div className="bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <HlsPlayer src={videoUrl.startsWith("/api/") ? getApiUrl(videoUrl) : videoUrl} sessionId={sessionId} />
+      </div>
+    );
+  }
+
+  const embedSrc = provider ? getVideoEmbedUrl(provider, resolveVideoId(provider, session)) : "";
+  if (!embedSrc) return null;
+  return <EmbedFrame src={embedSrc} title={session.title} />;
 }
 
 function NoContentCard({ title }: { title: string }) {
@@ -498,23 +496,6 @@ function NoContentCard({ title }: { title: string }) {
       <AlertCircle size={40} className="mx-auto text-gray-300 mb-3" />
       <h2 className="text-base font-semibold text-gray-600 mb-1">{title}</h2>
       <p className="text-sm text-gray-400">No viewable content is attached to this session yet.</p>
-    </div>
-  );
-}
-
-function VideoPlayer({ session, sessionId }: { session: { videoUrl: string | null; contentType: string; title: string }; sessionId: string }) {
-  const { videoUrl } = session;
-  if (!videoUrl) return null;
-
-  const isYT = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
-
-  return (
-    <div className="bg-black rounded-2xl overflow-hidden shadow-2xl">
-      {isYT ? (
-        <YouTubeEmbed url={videoUrl} />
-      ) : (
-        <HlsPlayer src={videoUrl.startsWith("/api/") ? getApiUrl(videoUrl) : videoUrl} sessionId={sessionId} />
-      )}
     </div>
   );
 }
@@ -667,8 +648,6 @@ export default function WatchPage() {
   const isVideoContent = contentType === "youtube" || contentType === "firebase" || Boolean(session.videoUrl);
   const backHref = session.courseId ? `/courses/${session.courseId}` : "/courses";
 
-  const firebaseId = (session as unknown as Record<string, unknown>).firebaseId as string | null ?? null;
-
   return (
     <Layout>
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -695,10 +674,8 @@ export default function WatchPage() {
               <div className="space-y-4">
                 {isVideoContent ? (
                   <div className="relative">
-                    {contentType === "youtube" && session.videoUrl ? (
-                      <VideoPlayer session={{ ...session, videoUrl: session.videoUrl ?? null }} sessionId={sessionId ?? ""} />
-                    ) : contentType === "firebase" && firebaseId ? (
-                      <FsVideoPlayer firebaseId={firebaseId} title={session.title} sessionId={sessionId ?? ""} />
+                    {isVideoContent ? (
+                      <LecturePlayer session={session} sessionId={sessionId ?? ""} />
                     ) : (
                       <NoContentCard title={session.title} />
                     )}

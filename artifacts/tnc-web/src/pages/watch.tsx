@@ -7,6 +7,7 @@ import { getUser } from "@/lib/auth";
 import { isVideoCompleted, markVideoWatched, toggleVideoCompleted } from "@/lib/streak";
 import { getTelegramUser } from "@/lib/telegram";
 import { useSiteAuth } from "@/components/SiteAuthProvider";
+import { withMediaAccessToken } from "@/lib/supabase";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -60,13 +61,19 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
     let recoveryAttempts = 0;
-    let retryPlayback = () => {
-      video.src = src;
-      video.load();
+    const loadWithToken = () => {
+      // Protected API media needs the access token in the query string because
+      // <video> requests cannot carry an Authorization header.
+      void withMediaAccessToken(src).then((resolvedSrc) => {
+        if (cancelled) return;
+        video.src = resolvedSrc;
+        video.load();
+      });
     };
+    let retryPlayback = loadWithToken;
 
     const isHls = src.includes(".m3u8");
-    const isProxied = src.startsWith("/api/media-proxy");
+    const isProxied = src.includes("/api/media-proxy");
 
     const onCanPlay = () => setBuffering(false);
     const onWaiting = () => setBuffering(true);
@@ -143,7 +150,7 @@ function HlsPlayer({ src, sessionId }: { src: string; sessionId?: string }) {
       });
     } else {
       video.addEventListener("error", onVideoError);
-      video.src = src;
+      loadWithToken();
     }
 
     if (sessionId) {
@@ -420,7 +427,19 @@ function YouTubeEmbed({ url }: { url: string }) {
 }
 
 function PdfViewer({ url, title }: { url: string; title: string }) {
-  const fullUrl = url.startsWith("http") ? url : getApiUrl(url);
+  const rawUrl = url.startsWith("http") ? url : getApiUrl(url);
+  const [fullUrl, setFullUrl] = useState(rawUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    void withMediaAccessToken(rawUrl).then((resolved) => {
+      if (!cancelled) setFullUrl(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rawUrl]);
+
   return (
     <div className="space-y-3">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -449,20 +468,26 @@ function PdfViewer({ url, title }: { url: string; title: string }) {
   );
 }
 
-function FsVideoPlayer({ firebaseId, title }: { firebaseId: string; title: string }) {
-  const playerUrl = `https://videoplay.tncnursing.in/videos/fs/index.html?${encodeURIComponent(firebaseId)}`;
+function FsVideoPlayer({ firebaseId, title, sessionId }: { firebaseId: string; title: string; sessionId?: string }) {
+  // The legacy external player (videoplay.tncnursing.in) sends
+  // `X-Frame-Options: SAMEORIGIN`, so it can never render inside an iframe.
+  // Stream through our own Range-capable proxy instead.
+  const src = getApiUrl(`/api/firebase-stream/${encodeURIComponent(firebaseId)}`);
+  const fallbackUrl = `https://videoplay.tncnursing.in/videos/fs/index.html?${encodeURIComponent(firebaseId)}`;
   return (
-    <div className="relative w-full rounded-xl overflow-hidden bg-black shadow-xl" style={{ paddingTop: "56.25%" }}>
-      <iframe
-        src={playerUrl}
-        className="absolute inset-0 w-full h-full"
-        allowFullScreen
-        allow="autoplay; fullscreen; picture-in-picture"
-        title={title}
-        loading="eager"
-        data-testid="fs-video-player"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
+    <div className="space-y-2">
+      <HlsPlayer src={src} sessionId={sessionId} />
+      <p className="px-1 text-xs text-gray-400">
+        Video not loading?{" "}
+        <a
+          href={fallbackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+        >
+          Open in a new tab ↗
+        </a>
+      </p>
     </div>
   );
 }
@@ -673,7 +698,7 @@ export default function WatchPage() {
                     {contentType === "youtube" && session.videoUrl ? (
                       <VideoPlayer session={{ ...session, videoUrl: session.videoUrl ?? null }} sessionId={sessionId ?? ""} />
                     ) : contentType === "firebase" && firebaseId ? (
-                      <FsVideoPlayer firebaseId={firebaseId} title={session.title} />
+                      <FsVideoPlayer firebaseId={firebaseId} title={session.title} sessionId={sessionId ?? ""} />
                     ) : (
                       <NoContentCard title={session.title} />
                     )}

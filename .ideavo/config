@@ -1,15 +1,15 @@
 {
   "systemSetup": [
     {
-      "name": "Install pnpm globally",
-      "command": "npm i -g pnpm"
+      "name": "Install pnpm",
+      "command": "npm i -g pnpm@10"
     }
   ],
   "templateName": "custom",
   "projectDependencies": [
     {
       "name": "Install Dependencies",
-      "command": "pnpm install"
+      "command": "CI=true pnpm install --frozen-lockfile"
     }
   ],
   "codeChecks": [
@@ -27,23 +27,40 @@
   "runStep": [
     {
       "name": "Run Dev Server",
-      "command": "PORT=3000 pnpm --filter @workspace/api-server run dev",
-      "port": "3000"
+      "command": "PORT=8080 pnpm --filter @workspace/api-server run dev & PORT=4000 BASE_PATH=/ pnpm --filter @workspace/tnc-web run dev",
+      "port": "4000"
     }
   ],
-  "deploySteps": [],
+  "deploySteps": [
+    {
+      "name": "Build for Deploy",
+      "command": "bash build.sh"
+    }
+  ],
   "cleanupFiles": [
     "node_modules",
     "artifacts/api-server/dist",
     "artifacts/tnc-web/dist",
     "artifacts/api-server/.tsbuildinfo",
-    "artifacts/tnc-web/.tsbuildinfo"
+    "artifacts/tnc-web/.tsbuildinfo",
+    "lib/api-client-react/tsconfig.tsbuildinfo",
+    "lib/api-zod/tsconfig.tsbuildinfo",
+    "lib/db/tsconfig.tsbuildinfo",
+    "lib/api-zod/dist"
   ],
   "packageManager": "pnpm",
   "envPaths": [
     {
       "name": "default",
       "path": ".env"
+    },
+    {
+      "name": "api-server",
+      "path": "artifacts/api-server/.env"
+    },
+    {
+      "name": "tnc-web",
+      "path": "artifacts/tnc-web/.env"
     }
   ]
 }

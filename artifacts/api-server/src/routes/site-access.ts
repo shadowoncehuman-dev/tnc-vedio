@@ -43,7 +43,12 @@ export interface SiteAccessRecord {
 
 export async function getSiteIdentity(req: Request): Promise<SiteIdentity | null> {
   const authorization = req.header("authorization");
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const bearerToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  // Media elements (<video>/<iframe>/<img>) cannot send an Authorization header,
+  // so allow the same bearer token to be supplied as an `access_token` query param
+  // for protected media endpoints (video streaming, media proxy, PDFs).
+  const queryToken = typeof req.query.access_token === "string" ? req.query.access_token : undefined;
+  const token = bearerToken ?? queryToken;
   if (!token) return null;
 
   const { data, error } = await getSupabaseAdmin().auth.getUser(token);

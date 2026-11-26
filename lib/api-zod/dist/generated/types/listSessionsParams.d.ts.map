@@ -1,0 +1,1 @@
+{"version":3,"file":"listSessionsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/listSessionsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,kBAAkB,GAAG;IACjC,QAAQ,CAAC,EAAE,MAAM,CAAC;IAClB,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,MAAM,CAAC,EAAE,MAAM,CAAC;CACf,CAAC"}

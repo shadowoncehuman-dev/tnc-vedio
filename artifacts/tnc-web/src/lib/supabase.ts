@@ -30,6 +30,27 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null> {
   return clientPromise;
 }
 
+export async function getMediaAccessToken(): Promise<string | null> {
+  const client = await getSupabaseClient();
+  if (!client) return null;
+  const { data } = await client.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+/**
+ * Media elements (<video>, <iframe>) cannot send an Authorization header, so
+ * append the current Supabase access token as a query param for protected
+ * `/api/*` media endpoints. Other URLs are returned unchanged.
+ */
+export async function withMediaAccessToken(url: string): Promise<string> {
+  if (!/\/api\/(firebase-stream|media-proxy|pdf)\b/.test(url)) return url;
+  if (/[?&]access_token=/.test(url)) return url;
+  const token = await getMediaAccessToken();
+  if (!token) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}access_token=${encodeURIComponent(token)}`;
+}
+
 export async function signInWithGoogle(redirectTo: string): Promise<void> {
   const client = await getSupabaseClient();
   if (!client) throw new Error("Google sign-in is not configured. Confirm the latest deployment includes the Supabase public key at build time or serves /api/site-auth/config.");

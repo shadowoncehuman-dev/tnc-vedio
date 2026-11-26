@@ -385,7 +385,7 @@ function extractYouTubeId(value: unknown): string | null {
   return match ? match[1] : null;
 }
 
-function parseChapter(row: Record<string, unknown>) {
+export function parseChapter(row: Record<string, unknown>) {
   const json = recordJson(row.json);
   const title = (json._na ?? "Untitled") as string;
   const derivedSubject = deriveSubject(title);
@@ -524,6 +524,14 @@ function parseChapter(row: Record<string, unknown>) {
       ? "pdf"
       : "content";
 
+  const coRefid = row.co_refid ?? json._co;
+  const resolvedCourseId =
+    Array.isArray(coRefid)
+      ? String(coRefid[0] ?? "")
+      : typeof coRefid === "string"
+        ? coRefid
+        : "";
+
   return {
     id: row.id as number,
     rowId: row.row_id as string,
@@ -537,7 +545,8 @@ function parseChapter(row: Record<string, unknown>) {
     videoId: videoId || null,
     contentType,
     type: finalType,
-    courseId: (row.co_refid ?? json._co) as string | null,
+    courseId: resolvedCourseId || null,
+    coRefid,
     subjectId: String(row.su_refid ?? json._su ?? derivedSubject.rowId).trim() || derivedSubject.rowId,
     isPaid: (json._pr_ty as number) === 1,
     duration: null as string | null,

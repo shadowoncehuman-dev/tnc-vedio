@@ -13,6 +13,7 @@
     "android": {
       "package": "com.tncnursing.mobile",
       "versionCode": 1,
+      "permissions": ["com.google.android.gms.permission.AD_ID"],
       "adaptiveIcon": {
         "backgroundColor": "#07175F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,7 +25,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video"
+      "expo-video",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "optimizeInitialization": true,
+          "optimizeAdLoading": true
+        }
+      ]
     ]
   }
 }

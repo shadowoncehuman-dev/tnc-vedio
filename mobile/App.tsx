@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { WebView } from 'react-native-webview';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AdBanner, initAds, showInterstitial, showRewardedAd } from './src/ads';
 
 const API_BASE = 'https://courses.tncnursing.site';
 const EXAM_URL = 'https://test.tncnursing.site';
@@ -135,6 +136,11 @@ export default function App() {
   const [stats, setStats] = useState<MobileStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [tab, setTab] = useState<'overview' | 'users'>('overview');
+  const lessonOpens = useRef(0);
+
+  useEffect(() => {
+    void initAds();
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -297,6 +303,12 @@ export default function App() {
   }
 
   async function openLesson(item: Lesson) {
+    const isPdfLesson = item.contentType === 'pdf' || Boolean(item.pdfUrl);
+    const hasVideo = Boolean(item.videoUrl || item.firebaseId);
+    if (!isPdfLesson && hasVideo && screen !== 'lesson') {
+      lessonOpens.current += 1;
+      if (lessonOpens.current % 3 === 0) void showInterstitial();
+    }
     setIsWatching(false);
     setLesson(item);
     setPreviousScreen(screen);
@@ -311,6 +323,11 @@ export default function App() {
     } else if (!item.videoUrl && !item.firebaseId) {
       Alert.alert('Lecture unavailable', 'This session does not have a playable video attached yet.');
     }
+  }
+
+  async function supportWithAd() {
+    const earned = await showRewardedAd();
+    if (earned) Alert.alert('Thank you', 'Your support keeps TNC Nursing free to use.');
   }
 
   async function loginAdmin() {
@@ -422,7 +439,8 @@ export default function App() {
           <View style={styles.profileStatRow}><ProfileStat label="COMPLETED" value={String(completed.length)} /><ProfileStat label="SAVED COURSES" value={String(favorites.length)} /><ProfileStat label="ON LEADERBOARD" value="LIVE" /></View>
           <Pressable style={styles.listRow} onPress={() => setScreen('leaderboard')}><Text style={styles.rowNumber}>01</Text><View style={styles.rowCopy}><Text style={styles.rowTitle}>Study leaderboard</Text><Text style={styles.rowMeta}>See the community rankings</Text></View><Text style={styles.chevron}>›</Text></Pressable>
           <Pressable style={styles.listRow} onPress={() => void Share.share({ message: 'Let’s study together with TNC Nursing 2.0', url: API_BASE })}><Text style={styles.rowNumber}>02</Text><View style={styles.rowCopy}><Text style={styles.rowTitle}>Share TNC Nursing</Text><Text style={styles.rowMeta}>Invite a classmate</Text></View><Text style={styles.chevron}>↗</Text></Pressable>
-          <Pressable style={styles.listRow} onPress={() => { setNameInput(name); setName(''); }}><Text style={styles.rowNumber}>03</Text><View style={styles.rowCopy}><Text style={styles.rowTitle}>Change your name</Text><Text style={styles.rowMeta}>Edit your study profile</Text></View><Text style={styles.chevron}>›</Text></Pressable>
+          <Pressable style={styles.listRow} onPress={() => void supportWithAd()}><Text style={styles.rowNumber}>03</Text><View style={styles.rowCopy}><Text style={styles.rowTitle}>Support TNC Nursing</Text><Text style={styles.rowMeta}>Watch a short ad</Text></View><Text style={styles.chevron}>▶</Text></Pressable>
+          <Pressable style={styles.listRow} onPress={() => { setNameInput(name); setName(''); }}><Text style={styles.rowNumber}>04</Text><View style={styles.rowCopy}><Text style={styles.rowTitle}>Change your name</Text><Text style={styles.rowMeta}>Edit your study profile</Text></View><Text style={styles.chevron}>›</Text></Pressable>
           <Pressable style={styles.adminLink} onPress={() => setScreen('adminLogin')}><Text style={styles.adminLinkText}>ADMINISTRATION  →</Text></Pressable>
         </>}
         {screen === 'lesson' && <>
@@ -451,6 +469,7 @@ export default function App() {
           {tab === 'users' && !users.length && <EmptyState label="No mobile users have opened the app yet." />}
         </>}
       </ScrollView>
+      {screen !== 'admin' && screen !== 'adminLogin' && screen !== 'lesson' && <AdBanner />}
       {screen !== 'admin' && screen !== 'adminLogin' && screen !== 'lesson' && <View style={styles.bottomNav}>{[
         ['home', '⌂', 'Home'], ['courses', '▣', 'Learn'], ['notes', '▤', 'Notes'], ['leaderboard', '♕', 'Rank'], ['profile', '◉', 'You'],
       ].map(([target, glyph, label]) => <Pressable key={target} onPress={() => { setQuery(''); setScreen(target as Screen); }} style={styles.navItem}><Text style={[styles.navGlyph, screen === target && styles.navSelected]}>{glyph}</Text><Text style={[styles.navLabel, screen === target && styles.navSelected]}>{label}</Text></Pressable>)}</View>}

@@ -49,7 +49,12 @@
     "lib/db/tsconfig.tsbuildinfo",
     "lib/api-client-react/dist",
     "lib/api-zod/dist",
-    "lib/db/dist"
+    "lib/db/dist",
+    "mobile/node_modules",
+    "mobile/.expo",
+    "mobile/dist",
+    "mobile/android",
+    "mobile/ios"
   ],
   "packageManager": "pnpm",
   "envPaths": [
@@ -68,6 +73,10 @@
     {
       "name": "db",
       "path": "lib/db/.env"
+    },
+    {
+      "name": "mobile",
+      "path": "mobile/.env"
     }
   ]
 }

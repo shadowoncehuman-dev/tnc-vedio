@@ -41,12 +41,15 @@
     "node_modules",
     "artifacts/api-server/dist",
     "artifacts/tnc-web/dist",
+    "artifacts/mockup-sandbox/dist",
     "artifacts/api-server/.tsbuildinfo",
     "artifacts/tnc-web/.tsbuildinfo",
     "lib/api-client-react/tsconfig.tsbuildinfo",
     "lib/api-zod/tsconfig.tsbuildinfo",
     "lib/db/tsconfig.tsbuildinfo",
-    "lib/api-zod/dist"
+    "lib/api-client-react/dist",
+    "lib/api-zod/dist",
+    "lib/db/dist"
   ],
   "packageManager": "pnpm",
   "envPaths": [
@@ -61,6 +64,10 @@
     {
       "name": "tnc-web",
       "path": "artifacts/tnc-web/.env"
+    },
+    {
+      "name": "db",
+      "path": "lib/db/.env"
     }
   ]
 }
